@@ -1,0 +1,1263 @@
+# Aggregated contents of /odoo/Jafor/Daily Manufacturing/financial-dashboard/financial-dashboard
+# Created by collect_files_content.py
+
+
+================================================================================
+📄 FILE: index.html
+================================================================================
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>financial-dashboard</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+
+
+================================================================================
+📄 FILE: eslint.config.js
+================================================================================
+
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+    },
+  },
+])
+
+
+
+================================================================================
+📄 FILE: postcss.config.js
+================================================================================
+
+export default {
+  plugins: {
+    '@tailwindcss/postcss': {},
+    autoprefixer: {},
+  },
+}
+
+
+================================================================================
+📄 FILE: tailwind.config.js
+================================================================================
+
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+
+
+================================================================================
+📄 FILE: package.json
+================================================================================
+
+{
+  "name": "financial-dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "clsx": "^2.1.1",
+    "firebase": "^12.7.0",
+    "lucide-react": "^0.562.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "recharts": "^3.6.0",
+    "tailwind-merge": "^3.4.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.23",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "vite": "^7.2.4"
+  }
+}
+
+
+
+================================================================================
+📄 FILE: vite.config.js
+================================================================================
+
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+
+
+
+================================================================================
+📄 FILE: .gitignore
+================================================================================
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+
+
+================================================================================
+📄 FILE: src/main.jsx
+================================================================================
+
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+
+
+================================================================================
+📄 FILE: src/App.jsx
+================================================================================
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Settings, Save, RefreshCw, PieChart as PieIcon, Download } from 'lucide-react';
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from './firebase';
+import { INITIAL_DATA } from './data/initialData';
+import { calculateN8nCost, calculateOpenAICost, calculatePineconeCost, getDaysInCurrentMonth } from './utils/costUtils';
+// Import Recharts
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+
+import N8nSection from './components/N8nSection';
+import OpenAISection from './components/OpenAISection';
+import PineconeSection from './components/PineconeSection';
+import SettingsModal from './components/SettingsModal';
+import Toast from './components/Toast';
+
+// Chart Colors
+const COLORS = ['#f97316', '#2563eb', '#4f46e5'];
+
+function App() {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [status, setStatus] = useState("Initializing...");
+  const [toast, setToast] = useState(null);
+
+  // 1. Initialize State with Seed Data
+  const [n8nData, setN8nData] = useState(INITIAL_DATA.n8nData);
+  const [aiNodes, setAiNodes] = useState(INITIAL_DATA.aiNodes);
+  const [pineconeData, setPineconeData] = useState(INITIAL_DATA.pineconeData);
+  const [pricing, setPricing] = useState(INITIAL_DATA.pricing);
+
+  // 2. Real-time Calculations
+  const n8nCost = calculateN8nCost(n8nData, pricing);
+  const openAICost = calculateOpenAICost(aiNodes, pricing);
+  const pineconeCost = calculatePineconeCost(pineconeData, pricing);
+  const grandTotal = n8nCost + openAICost + pineconeCost;
+
+  // 3. Prepare Chart Data (Must be defined here!)
+  const chartData = [
+    { name: 'N8n Workflow', value: n8nCost },
+    { name: 'OpenAI Intelligence', value: openAICost },
+    { name: 'Pinecone Memory', value: pineconeCost },
+  ].filter(item => item.value > 0);
+
+  // Helper for formatting currency
+  const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+  };
+
+  // --- ACTIONS ---
+
+  // 4. Export CSV Function
+  const handleExport = () => {
+    const daysInMonth = getDaysInCurrentMonth();
+
+    const rows = [
+      ['Category', 'Item', 'Detail', 'Monthly Cost'],
+      ['N8n', n8nData.plan, `${n8nData.duration} billing`, n8nCost.toFixed(2)],
+      ['Pinecone', pineconeData.plan, `${pineconeData.storageGB}GB / ${pineconeData.readUnits} RUs`, pineconeCost.toFixed(2)],
+      ...aiNodes.map(node => [
+        'OpenAI',
+        node.name,
+        `${node.model} (${node.executionsPerDay} runs/day)`,
+        // Re-calc row cost for CSV
+        ((pricing.openai[node.model].input * (node.inputTokens / 1e6) + pricing.openai[node.model].output * (node.outputTokens / 1e6)) * node.executionsPerDay * daysInMonth).toFixed(2)
+      ]),
+      ['TOTAL', '', `Based on ${daysInMonth} days`, grandTotal.toFixed(2)]
+    ];
+
+    const csvContent = "data:text/csv;charset=utf-8,"
+      + rows.map(e => e.join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `financial_model_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showToast("Report downloaded successfully!", "success");
+  };
+
+  // 5. Save Function (Defined BEFORE loadData uses it)
+  const handleSave = useCallback(async (silent = false) => {
+    if (!silent) setStatus("Saving...");
+    try {
+      await setDoc(doc(db, "dashboards", "main_config"), {
+        n8nData, aiNodes, pineconeData, pricing, lastUpdated: new Date()
+      });
+      setStatus("Ready");
+      if (!silent) showToast("Session saved successfully!", "success");
+    } catch (e) {
+      console.error(e);
+      setStatus("Error");
+      showToast("Failed to save data. Check console.", "error");
+    }
+  }, [n8nData, aiNodes, pineconeData, pricing]);
+
+  // 6. Load Function
+  const loadData = useCallback(async () => {
+    // Note: Removed initial setStatus("Fetching") here to prevent immediate re-render loop
+    try {
+      const docRef = doc(db, "dashboards", "main_config");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.n8nData) setN8nData(data.n8nData);
+        if (data.aiNodes) setAiNodes(data.aiNodes);
+        if (data.pineconeData) setPineconeData(data.pineconeData);
+        if (data.pricing) setPricing(data.pricing);
+        setStatus("Synced");
+      } else {
+        setStatus("New DB");
+        // We handle the initial save manually or let user do it to avoid loop
+      }
+    } catch (e) {
+      console.error("Error loading:", e);
+      setStatus("Offline");
+      showToast("Could not connect to database", "error");
+    }
+  }, []);
+
+  // FIX: Wrap the call in an internal async function.
+  // This satisfies the linter ensuring we aren't synchronously calling setState inside the effect body.
+  useEffect(() => {
+    const init = async () => {
+      await loadData();
+    };
+    init();
+  }, [loadData]);
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-8 font-sans text-slate-800">
+      <div className="max-w-6xl mx-auto">
+
+        {/* Header */}
+        <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Financial & Operational Impact Dashboard</h1>
+            <p className="text-slate-500">Real-time cost modeling for Automated Procurement Workflow</p>
+          </div>
+          <div className="flex gap-3">
+            <div className="bg-white px-4 py-2 rounded shadow text-sm font-medium flex items-center min-w-[140px] justify-center">
+              <span className={`w-2 h-2 rounded-full mr-2 ${status.includes("Fail") || status.includes("Error") || status.includes("Offline") ? "bg-red-500" : "bg-green-500"}`}></span>
+              {status}
+            </div>
+            {/* EXPORT BUTTON */}
+            <button onClick={handleExport} className="p-2 bg-white rounded shadow hover:bg-gray-50 text-gray-700" title="Export CSV">
+              <Download size={20} />
+            </button>
+            <button onClick={loadData} className="p-2 bg-white rounded shadow hover:bg-gray-50 text-gray-700" title="Refresh from DB">
+              <RefreshCw size={20} />
+            </button>
+            <button onClick={() => setIsSettingsOpen(true)} className="p-2 bg-white rounded shadow hover:bg-gray-50 text-gray-700">
+              <Settings size={20} />
+            </button>
+            <button onClick={() => handleSave(false)} className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded shadow hover:bg-gray-800 transition-colors">
+              <Save size={18} /> Save Session
+            </button>
+          </div>
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+          {/* Left Column: Inputs */}
+          <div className="lg:col-span-2 space-y-6">
+            <N8nSection
+              data={n8nData} setData={setN8nData}
+              pricing={pricing} calculatedCost={n8nCost}
+            />
+            <OpenAISection
+              nodes={aiNodes} setNodes={setAiNodes}
+              pricing={pricing} calculatedCost={openAICost}
+            />
+            <PineconeSection
+              data={pineconeData} setData={setPineconeData}
+              pricing={pricing} calculatedCost={pineconeCost}
+            />
+          </div>
+
+          {/* Right Column: Visualization Sticky Panel */}
+          <div className="lg:col-span-1">
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 sticky top-8">
+              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <PieIcon size={20} className="text-slate-500" /> Cost Breakdown
+              </h2>
+
+              {/* The Chart */}
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      cx="50%" cy="50%"
+                      innerRadius={60} outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Grand Total Card */}
+              <div className="mt-6 pt-6 border-t border-dashed border-gray-200 text-center">
+                <div className="text-gray-500 text-sm font-medium uppercase tracking-wide">
+                  Total Monthly OpEx
+                </div>
+                <div className="text-4xl font-extrabold text-slate-900 mt-2">
+                  {formatCurrency(grandTotal)}
+                </div>
+                <div className="text-xs text-gray-400 mt-2">
+                  *Calculated for {getDaysInCurrentMonth()} days
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          pricing={pricing} setPricing={setPricing}
+        />
+
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+
+        <div className="h-24"></div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+
+
+================================================================================
+📄 FILE: src/firebase.js
+================================================================================
+
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+
+// Your actual configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDilO9I-eqhMSoJbpKdC-_x9UAFb_Sksk0",
+  authDomain: "n8n-cost-dashboard.firebaseapp.com",
+  projectId: "n8n-cost-dashboard",
+  storageBucket: "n8n-cost-dashboard.firebasestorage.app",
+  messagingSenderId: "921560173940",
+  appId: "1:921560173940:web:00ec8811e2e787f20e3021",
+  measurementId: "G-C4E1EERTZB"
+};
+
+// 1. Initialize the App
+const app = initializeApp(firebaseConfig);
+
+// 2. Initialize & Export the Database (Required for the dashboard)
+export const db = getFirestore(app);
+
+
+================================================================================
+📄 FILE: src/index.css
+================================================================================
+
+@import "tailwindcss";
+
+body {
+  background-color: #f3f4f6;
+}
+
+/* Add these animations */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out forwards;
+}
+
+@keyframes shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+.animate-shrink {
+  animation: shrink 3s linear forwards;
+}
+
+
+================================================================================
+📄 FILE: src/components/N8nSection.jsx
+================================================================================
+
+import React from 'react';
+
+export default function N8nSection({ data, setData, pricing, calculatedCost }) {
+    const { plan, users, executionsPerUser, duration } = data;
+    const currentPlan = pricing.n8n[plan];
+    const totalExecutions = users * executionsPerUser;
+    const isOverLimit = totalExecutions > currentPlan.limit;
+
+    return (
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">1. N8n Workflow Execution</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Select Plan</label>
+                    <select
+                        className="w-full p-2 border rounded"
+                        value={plan}
+                        onChange={(e) => setData({ ...data, plan: e.target.value })}
+                    >
+                        {Object.entries(pricing.n8n).map(([key, val]) => (
+                            <option key={key} value={key}>{val.label}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Billing Duration</label>
+                    <select
+                        className="w-full p-2 border rounded"
+                        value={duration}
+                        onChange={(e) => setData({ ...data, duration: e.target.value })}
+                    >
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Number of Users</label>
+                    <input
+                        type="number" className="w-full p-2 border rounded"
+                        value={users}
+                        onChange={(e) => setData({ ...data, users: parseInt(e.target.value) || 0 })}
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Executions per User</label>
+                    <input
+                        type="number" className="w-full p-2 border rounded"
+                        value={executionsPerUser}
+                        onChange={(e) => setData({ ...data, executionsPerUser: parseInt(e.target.value) || 0 })}
+                    />
+                </div>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-md flex justify-between items-center">
+                <div>
+                    <div className="text-sm text-gray-500">Total Executions Required</div>
+                    <div className={`text-xl font-bold ${isOverLimit ? 'text-red-600' : 'text-gray-900'}`}>
+                        {totalExecutions.toLocaleString()} / {currentPlan.limit.toLocaleString()}
+                    </div>
+                    {isOverLimit && <div className="text-xs text-red-500 font-bold mt-1">⚠️ EXCEEDS PLAN LIMIT</div>}
+                </div>
+                <div className="text-right">
+                    <div className="text-sm text-gray-500">Estimated Cost ({duration})</div>
+                    <div className="text-2xl font-bold text-indigo-600">${calculatedCost.toFixed(2)}</div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+================================================================================
+📄 FILE: src/components/OpenAISection.jsx
+================================================================================
+
+import React from 'react';
+import { Trash2, PlusCircle, Activity } from 'lucide-react';
+
+export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost }) {
+
+    const updateNode = (index, field, value) => {
+        const newNodes = [...nodes];
+        // Keep name/model as strings, others as numbers
+        newNodes[index][field] = (field === 'name' || field === 'model')
+            ? value
+            : (parseFloat(value) || 0);
+        setNodes(newNodes);
+    };
+
+    const addNode = () => {
+        setNodes([...nodes, {
+            name: 'New Workflow',
+            model: 'gpt-4o-mini',
+            inputTokens: 1000,
+            outputTokens: 200,
+            cacheHitRate: 0, // Default to 0% caching
+            executionsPerDay: 50
+        }]);
+    };
+
+    const removeNode = (index) => {
+        setNodes(nodes.filter((_, i) => i !== index));
+    };
+
+    const getRowCost = (node) => {
+        const modelPrice = pricing.openai[node.model];
+        if (!modelPrice) return 0;
+
+        const cacheRate = (node.cacheHitRate || 0) / 100;
+        const totalInput = node.inputTokens || 0;
+
+        // Price Logic
+        const freshPrice = modelPrice.input;
+        const cachedPrice = modelPrice.cached !== undefined ? modelPrice.cached : modelPrice.input;
+
+        const inputCost = ((totalInput * (1 - cacheRate) / 1e6) * freshPrice) +
+            ((totalInput * cacheRate / 1e6) * cachedPrice);
+
+        const outputCost = (node.outputTokens / 1e6 * modelPrice.output);
+        const costPerRun = inputCost + outputCost;
+
+        return costPerRun * (node.executionsPerDay || 0) * 30;
+    };
+
+    const totalMonthlyExecutions = nodes.reduce((acc, node) => acc + ((node.executionsPerDay || 0) * 30), 0);
+
+    return (
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mt-6">
+            <div className="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <Activity className="text-blue-600" size={20} />
+                    2. OpenAI Intelligence Costs
+                </h2>
+                <button onClick={addNode} className="flex items-center text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100 font-medium">
+                    <PlusCircle size={16} className="mr-1" /> Add Workflow
+                </button>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 text-gray-600 uppercase">
+                        <tr>
+                            <th className="p-3 w-1/5">Workflow Name</th>
+                            <th className="p-3">Model</th>
+                            <th className="p-3 w-24">Input Tks</th>
+                            <th className="p-3 w-24">Output Tks</th>
+                            <th className="p-3 w-24 text-blue-600">Cache Hit %</th>
+                            <th className="p-3 w-28 bg-blue-50/50 text-blue-800 border-b-2 border-blue-200">Runs/Day</th>
+                            <th className="p-3 text-right">Est. Monthly</th>
+                            <th className="p-3 w-10"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {nodes.map((node, i) => (
+                            <tr key={i} className="border-b hover:bg-gray-50 transition-colors">
+                                <td className="p-2">
+                                    <input
+                                        className="border rounded w-full p-2 text-gray-700 focus:outline-blue-500"
+                                        placeholder="e.g. Invoice Parser"
+                                        value={node.name}
+                                        onChange={(e) => updateNode(i, 'name', e.target.value)}
+                                    />
+                                </td>
+                                <td className="p-2">
+                                    <select
+                                        className="border rounded w-full p-2 bg-white"
+                                        value={node.model}
+                                        onChange={(e) => updateNode(i, 'model', e.target.value)}
+                                    >
+                                        {Object.entries(pricing.openai).map(([key, val]) => (
+                                            <option key={key} value={key}>{val.label}</option>
+                                        ))}
+                                    </select>
+                                </td>
+                                <td className="p-2">
+                                    <input type="number" className="border rounded w-full p-2 text-center" value={node.inputTokens} onChange={(e) => updateNode(i, 'inputTokens', e.target.value)} />
+                                </td>
+                                <td className="p-2">
+                                    <input type="number" className="border rounded w-full p-2 text-center" value={node.outputTokens} onChange={(e) => updateNode(i, 'outputTokens', e.target.value)} />
+                                </td>
+                                {/* Cache Percentage Input */}
+                                <td className="p-2">
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            min="0" max="100"
+                                            className="border border-blue-200 rounded w-full p-2 text-center text-blue-600 font-medium"
+                                            value={node.cacheHitRate || 0}
+                                            onChange={(e) => updateNode(i, 'cacheHitRate', e.target.value)}
+                                        />
+                                        <span className="absolute right-1 top-2 text-xs text-blue-300">%</span>
+                                    </div>
+                                </td>
+                                <td className="p-2 bg-blue-50/30 border-l border-r border-dashed border-blue-100">
+                                    <input
+                                        type="number"
+                                        className="border border-blue-300 rounded w-full p-2 text-center font-bold text-blue-900 focus:ring-2 focus:ring-blue-500"
+                                        value={node.executionsPerDay}
+                                        onChange={(e) => updateNode(i, 'executionsPerDay', e.target.value)}
+                                    />
+                                </td>
+                                <td className="p-2 text-right font-mono font-bold text-gray-700">
+                                    ${getRowCost(node).toFixed(2)}
+                                </td>
+                                <td className="p-2 text-center">
+                                    <button onClick={() => removeNode(i)} className="text-gray-400 hover:text-red-600"><Trash2 size={16} /></button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Summary Footer */}
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+                <div className="flex flex-col justify-center">
+                    <div className="text-sm text-gray-500">Total Volume</div>
+                    <div className="text-lg font-semibold text-gray-700">
+                        {totalMonthlyExecutions.toLocaleString()} <span className="text-sm font-normal text-gray-400">runs / month</span>
+                    </div>
+                </div>
+                <div className="text-right">
+                    <div className="text-sm text-gray-500">Monthly AI Budget</div>
+                    <div className="text-3xl font-bold text-indigo-600">${calculatedCost.toFixed(2)}</div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+================================================================================
+📄 FILE: src/components/Toast.jsx
+================================================================================
+
+import React, { useEffect } from 'react';
+import { CheckCircle, AlertCircle, X } from 'lucide-react';
+
+export default function Toast({ message, type, onClose }) {
+  // Auto-dismiss after 3 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const isSuccess = type === 'success';
+
+  return (
+    <div className={`fixed bottom-6 right-6 z-[60] flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border border-gray-100 bg-white min-w-[300px] animate-slide-in transition-all duration-300 transform translate-y-0 opacity-100`}>
+      {/* Icon */}
+      <div className={`p-2 rounded-full ${isSuccess ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+        {isSuccess ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1">
+        <h4 className={`text-sm font-bold ${isSuccess ? 'text-green-800' : 'text-red-800'}`}>
+          {isSuccess ? 'Success' : 'Error'}
+        </h4>
+        <p className="text-sm text-gray-600">{message}</p>
+      </div>
+
+      {/* Close Button */}
+      <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+        <X size={16} />
+      </button>
+      
+      {/* Loading Bar Animation (Optional visual flair) */}
+      <div className={`absolute bottom-0 left-0 h-1 ${isSuccess ? 'bg-green-500' : 'bg-red-500'} animate-shrink`} style={{ width: '100%' }}></div>
+    </div>
+  );
+}
+
+
+================================================================================
+📄 FILE: src/components/PineconeSection.jsx
+================================================================================
+
+import React from 'react';
+
+export default function PineconeSection({ data, setData, pricing, calculatedCost }) {
+  const { plan, storageGB, readUnits, writeUnits } = data;
+  const rates = pricing.pinecone;
+  const planMin = rates.plans[plan].min;
+  
+  // Just for display logic
+  const rawUsageCost = (storageGB * rates.storage) + (readUnits / 1e6 * rates.read) + (writeUnits / 1e6 * rates.write);
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mt-6">
+      <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">3. Pinecone Memory (Vector DB)</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div className="md:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Plan Tier</label>
+            <select className="w-full p-2 border rounded" value={plan} onChange={(e) => setData({...data, plan: e.target.value})}>
+                {Object.entries(rates.plans).map(([key, val]) => (
+                    <option key={key} value={key}>{val.label}</option>
+                ))}
+            </select>
+        </div>
+        <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Storage (GB)</label>
+            <input type="number" step="0.1" className="w-full p-2 border rounded" value={storageGB} onChange={(e) => setData({...data, storageGB: parseFloat(e.target.value) || 0})}/>
+        </div>
+        <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Read Units (RUs)</label>
+            <input type="number" className="w-full p-2 border rounded" value={readUnits} onChange={(e) => setData({...data, readUnits: parseFloat(e.target.value) || 0})}/>
+        </div>
+        <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Write Units (WUs)</label>
+            <input type="number" className="w-full p-2 border rounded" value={writeUnits} onChange={(e) => setData({...data, writeUnits: parseFloat(e.target.value) || 0})}/>
+        </div>
+      </div>
+
+      <div className="bg-gray-50 p-4 rounded-md flex justify-between items-center">
+        <div className="text-sm text-gray-500">
+            Raw Usage: ${rawUsageCost.toFixed(4)} <br/>
+            Minimum Floor: ${planMin.toFixed(2)}
+        </div>
+        <div className="text-right">
+          <div className="text-sm text-gray-500">Total Database Cost</div>
+          <div className="text-2xl font-bold text-indigo-600">${calculatedCost.toFixed(2)}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+================================================================================
+📄 FILE: src/components/SettingsModal.jsx
+================================================================================
+
+import React, { useState } from 'react';
+import { X, Save, Database, Cpu, Zap } from 'lucide-react';
+
+export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) {
+    const [tempPricing, setTempPricing] = useState(JSON.parse(JSON.stringify(pricing)));
+    const [activeTab, setActiveTab] = useState('openai'); // openai | n8n | pinecone
+
+    const handleOpenAIChange = (model, field, value) => {
+        setTempPricing(prev => ({
+            ...prev,
+            openai: {
+                ...prev.openai,
+                [model]: { ...prev.openai[model], [field]: parseFloat(value) }
+            }
+        }));
+    };
+
+    const handleN8nChange = (plan, field, value) => {
+        setTempPricing(prev => ({
+            ...prev,
+            n8n: {
+                ...prev.n8n,
+                [plan]: { ...prev.n8n[plan], [field]: parseFloat(value) }
+            }
+        }));
+    };
+
+    const handlePineconeChange = (field, value) => {
+        setTempPricing(prev => ({
+            ...prev,
+            pinecone: { ...prev.pinecone, [field]: parseFloat(value) }
+        }));
+    };
+
+    const handlePineconePlanChange = (plan, field, value) => {
+        setTempPricing(prev => ({
+            ...prev,
+            pinecone: {
+                ...prev.pinecone,
+                plans: {
+                    ...prev.pinecone.plans,
+                    [plan]: { ...prev.pinecone.plans[plan], [field]: parseFloat(value) }
+                }
+            }
+        }));
+    };
+
+    const save = () => {
+        setPricing(tempPricing);
+        onClose();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+
+                {/* Header */}
+                <div className="flex justify-between items-center p-6 border-b shrink-0 bg-white">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900">Global Pricing Configuration</h2>
+                        <p className="text-sm text-gray-500">Update the base rates used for all calculations.</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={20} /></button>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex border-b bg-gray-50 shrink-0">
+                    <button
+                        onClick={() => setActiveTab('openai')}
+                        className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'openai' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <Zap size={18} /> OpenAI Intelligence
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('n8n')}
+                        className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'n8n' ? 'border-orange-600 text-orange-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <Cpu size={18} /> N8n Infrastructure
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('pinecone')}
+                        className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'pinecone' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <Database size={18} /> Pinecone Memory
+                    </button>
+                </div>
+
+                {/* Scrollable Content */}
+                <div className="overflow-y-auto flex-1 p-6 bg-gray-50/30">
+
+                    {/* --- OPENAI TAB --- */}
+                    {activeTab === 'openai' && (
+                        <div>
+                            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-4 mb-2 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                <div>Model Name</div>
+                                <div>Input ($)</div>
+                                <div className="text-blue-600">Cached ($)</div>
+                                <div>Output ($)</div>
+                            </div>
+                            <div className="space-y-2">
+                                {Object.entries(tempPricing.openai).map(([key, data]) => (
+                                    <div key={key} className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-4 items-center bg-white p-2 rounded border border-gray-200 hover:border-blue-300 transition-colors">
+                                        <div className="font-medium text-gray-700 text-sm truncate pr-2">{data.label}</div>
+                                        <input
+                                            type="number" step="0.001"
+                                            className="border rounded px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full"
+                                            value={data.input}
+                                            onChange={(e) => handleOpenAIChange(key, 'input', e.target.value)}
+                                        />
+                                        <input
+                                            type="number" step="0.001"
+                                            className="border border-blue-200 bg-blue-50 rounded px-2 py-1.5 text-sm text-blue-800 focus:ring-2 focus:ring-blue-500 outline-none w-full"
+                                            value={data.cached || 0}
+                                            onChange={(e) => handleOpenAIChange(key, 'cached', e.target.value)}
+                                        />
+                                        <input
+                                            type="number" step="0.001"
+                                            className="border rounded px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full"
+                                            value={data.output}
+                                            onChange={(e) => handleOpenAIChange(key, 'output', e.target.value)}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- N8N TAB --- */}
+                    {activeTab === 'n8n' && (
+                        <div className="space-y-6">
+                            {Object.entries(tempPricing.n8n).map(([planKey, planData]) => (
+                                <div key={planKey} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                                    <h3 className="font-bold text-gray-800 mb-4 border-b pb-2 flex justify-between">
+                                        {planData.label.split('(')[0].trim()} Plan
+                                        <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded">ID: {planKey}</span>
+                                    </h3>
+                                    <div className="grid grid-cols-3 gap-6">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Monthly Price ($)</label>
+                                            <input
+                                                type="number"
+                                                className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                                                value={planData.price}
+                                                onChange={(e) => handleN8nChange(planKey, 'price', e.target.value)}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Included Executions</label>
+                                            <input
+                                                type="number"
+                                                className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                                                value={planData.limit}
+                                                onChange={(e) => handleN8nChange(planKey, 'limit', e.target.value)}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Yearly Discount (0-1)</label>
+                                            <input
+                                                type="number" step="0.01" max="1"
+                                                className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                                                value={planData.yearlyDiscountPercent}
+                                                onChange={(e) => handleN8nChange(planKey, 'yearlyDiscountPercent', e.target.value)}
+                                            />
+                                            <div className="text-xs text-gray-400 mt-1">
+                                                e.g. 0.20 = 20% off
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* --- PINECONE TAB --- */}
+                    {activeTab === 'pinecone' && (
+                        <div className="space-y-6">
+                            {/* Usage Rates */}
+                            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                                <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">Serverless Usage Rates</h3>
+                                <div className="grid grid-cols-3 gap-6">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Storage ($ per GB/mo)</label>
+                                        <input
+                                            type="number" step="0.01"
+                                            className="border rounded w-full p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            value={tempPricing.pinecone.storage}
+                                            onChange={(e) => handlePineconeChange('storage', e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Read ($ per 1M units)</label>
+                                        <input
+                                            type="number" step="0.01"
+                                            className="border rounded w-full p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            value={tempPricing.pinecone.read}
+                                            onChange={(e) => handlePineconeChange('read', e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Write ($ per 1M units)</label>
+                                        <input
+                                            type="number" step="0.01"
+                                            className="border rounded w-full p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            value={tempPricing.pinecone.write}
+                                            onChange={(e) => handlePineconeChange('write', e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Plan Minimums */}
+                            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                                <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">Plan Base Fees / Minimums</h3>
+                                <div className="space-y-4">
+                                    {Object.entries(tempPricing.pinecone.plans).map(([planKey, planData]) => (
+                                        <div key={planKey} className="flex items-center justify-between">
+                                            <span className="text-sm font-medium text-gray-700">{planData.label}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm text-gray-500">Min Monthly Cost: $</span>
+                                                <input
+                                                    type="number"
+                                                    className="border rounded w-32 p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    value={planData.min}
+                                                    onChange={(e) => handlePineconePlanChange(planKey, 'min', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+
+                {/* Footer Actions */}
+                <div className="p-4 border-t bg-white shrink-0">
+                    <button onClick={save} className="w-full bg-slate-900 text-white py-3 rounded-lg hover:bg-slate-800 flex items-center justify-center gap-2 font-bold shadow-md transition-all active:scale-[0.99]">
+                        <Save size={18} /> Save Global Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+================================================================================
+📄 FILE: src/utils/costUtils.js
+================================================================================
+
+// Helper to get actual days in the current month (e.g., 28, 30, or 31)
+export const getDaysInCurrentMonth = () => {
+    const now = new Date();
+    // Day 0 of the next month is the last day of the current month
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+};
+
+export const calculateN8nCost = (data, pricing) => {
+    const { plan, duration } = data;
+    const currentPlan = pricing.n8n[plan];
+
+    if (!currentPlan) return 0;
+
+    let monthlyCost = currentPlan.price;
+
+    // Apply discount if yearly, but return monthly equivalent
+    if (duration === 'yearly') {
+        const discount = currentPlan.yearlyDiscountPercent || 0;
+        monthlyCost = monthlyCost * (1 - discount);
+    }
+
+    return monthlyCost;
+};
+
+export const calculateOpenAICost = (nodes, pricing) => {
+    // Dynamically get days for *this specific month*
+    const daysInMonth = getDaysInCurrentMonth(); 
+
+    return nodes.reduce((acc, node) => {
+        const modelPrice = pricing.openai[node.model];
+        if (!modelPrice) return acc;
+
+        // Default cache rate to 0% if not set
+        const cacheRate = (node.cacheHitRate || 0) / 100;
+        const totalInput = node.inputTokens || 0;
+
+        // 1. Calculate weighted Input Cost (Fresh vs Cached)
+        const freshPrice = modelPrice.input;
+        const cachedPrice = modelPrice.cached !== undefined ? modelPrice.cached : modelPrice.input;
+
+        const freshTokens = totalInput * (1 - cacheRate);
+        const cachedTokens = totalInput * cacheRate;
+
+        // Cost per 1M tokens
+        const inputCost = (freshTokens / 1000000 * freshPrice) + (cachedTokens / 1000000 * cachedPrice);
+
+        // 2. Output Cost per 1M tokens
+        const outputCost = (node.outputTokens / 1000000) * modelPrice.output;
+
+        const costPerExecution = inputCost + outputCost;
+
+        // 3. Scale by Daily Volume -> Monthly
+        const dailyExecutions = parseFloat(node.executionsPerDay) || 0;
+        
+        // Uses actual calendar days instead of a flat 30
+        const monthlyCost = costPerExecution * dailyExecutions * daysInMonth;
+
+        return acc + monthlyCost;
+    }, 0);
+};
+
+export const calculatePineconeCost = (data, pricing) => {
+    const { plan, storageGB, readUnits, writeUnits } = data;
+    const rates = pricing.pinecone;
+    const planDetails = rates.plans[plan];
+
+    if (!planDetails) return 0;
+
+    const storageCost = storageGB * rates.storage;
+    const readCost = (readUnits / 1000000) * rates.read;
+    const writeCost = (writeUnits / 1000000) * rates.write;
+    const rawUsageCost = storageCost + readCost + writeCost;
+
+    // Serverless usually charges the greater of Usage vs Minimum
+    return Math.max(rawUsageCost, planDetails.min);
+};
+
+
+================================================================================
+📄 FILE: src/data/initialData.js
+================================================================================
+
+// This file is ONLY used if the Database is empty (First run ever)
+export const INITIAL_DATA = {
+  n8nData: { 
+    plan: 'pro', 
+    users: 1, 
+    executionsPerUser: 4800, 
+    duration: 'monthly' 
+  },
+  aiNodes: [
+    { name: 'Email Classifier', model: 'gpt-4o-mini', inputTokens: 1500, outputTokens: 50, executionsPerDay: 200, cacheHitRate: 0 },
+    { name: 'Draft Agent', model: 'gpt-4o', inputTokens: 4000, outputTokens: 300, executionsPerDay: 50, cacheHitRate: 0 }
+  ],
+  pineconeData: { 
+    plan: 'standard', 
+    storageGB: 0.3, 
+    readUnits: 4320, 
+    writeUnits: 3600 
+  },
+  pricing: {
+    n8n: {
+      starter: { price: 20, limit: 2500, label: "Starter ($20/mo, 2.5k execs)", yearlyDiscountPercent: 0.20 },
+      pro: { price: 50, limit: 10000, label: "Pro ($50/mo, 10k execs)", yearlyDiscountPercent: 0.20 },
+      business: { price: 667, limit: 40000, label: "Business ($667/mo, 40k execs)", yearlyDiscountPercent: 0.15 },
+    },
+    openai: {
+        // Prices per 1 Million Tokens (Input / Cached Input / Output)
+        "gpt-5.2": { input: 1.75, cached: 0.175, output: 14.00, label: "GPT-5.2" },
+        "gpt-5.1": { input: 1.25, cached: 0.125, output: 10.00, label: "GPT-5.1" },
+        "gpt-5": { input: 1.25, cached: 0.125, output: 10.00, label: "GPT-5" },
+        "gpt-5-mini": { input: 0.25, cached: 0.025, output: 2.00, label: "GPT-5 Mini" },
+        "gpt-5-nano": { input: 0.05, cached: 0.005, output: 0.40, label: "GPT-5 Nano" },
+        "gpt-5.2-chat-latest": { input: 1.75, cached: 0.175, output: 14.00, label: "GPT-5.2 Chat Latest" },
+        "gpt-5.1-chat-latest": { input: 1.25, cached: 0.125, output: 10.00, label: "GPT-5.1 Chat Latest" },
+        "gpt-5-chat-latest": { input: 1.25, cached: 0.125, output: 10.00, label: "GPT-5 Chat Latest" },
+        "gpt-5.1-codex-max": { input: 1.25, cached: 0.125, output: 10.00, label: "GPT-5.1 Codex Max" },
+        "gpt-5.1-codex": { input: 1.25, cached: 0.125, output: 10.00, label: "GPT-5.1 Codex" },
+        "gpt-5-codex": { input: 1.25, cached: 0.125, output: 10.00, label: "GPT-5 Codex" },
+        "gpt-5.2-pro": { input: 21.00, cached: 21.00, output: 168.00, label: "GPT-5.2 Pro" },
+        "gpt-5-pro": { input: 15.00, cached: 15.00, output: 120.00, label: "GPT-5 Pro" },
+        "gpt-4.1": { input: 2.00, cached: 0.50, output: 8.00, label: "GPT-4.1" },
+        "gpt-4.1-mini": { input: 0.40, cached: 0.10, output: 1.60, label: "GPT-4.1 Mini" },
+        "gpt-4.1-nano": { input: 0.10, cached: 0.025, output: 0.40, label: "GPT-4.1 Nano" },
+        "gpt-4o": { input: 2.50, cached: 1.25, output: 10.00, label: "GPT-4o" },
+        "gpt-4o-2024-05-13": { input: 5.00, cached: 5.00, output: 15.00, label: "GPT-4o (2024-05-13)" },
+        "gpt-4o-mini": { input: 0.15, cached: 0.075, output: 0.60, label: "GPT-4o Mini" },
+        "gpt-realtime": { input: 4.00, cached: 0.40, output: 16.00, label: "GPT Realtime" },
+        "gpt-realtime-mini": { input: 0.60, cached: 0.06, output: 2.40, label: "GPT Realtime Mini" },
+        "gpt-4o-realtime-preview": { input: 5.00, cached: 2.50, output: 20.00, label: "GPT-4o Realtime Preview" },
+        "gpt-4o-mini-realtime-preview": { input: 0.60, cached: 0.30, output: 2.40, label: "GPT-4o Mini Realtime" },
+        "gpt-audio": { input: 2.50, cached: 2.50, output: 10.00, label: "GPT Audio" },
+        "gpt-audio-mini": { input: 0.60, cached: 0.60, output: 2.40, label: "GPT Audio Mini" },
+        "gpt-4o-audio-preview": { input: 2.50, cached: 2.50, output: 10.00, label: "GPT-4o Audio Preview" },
+        "gpt-4o-mini-audio-preview": { input: 0.15, cached: 0.15, output: 0.60, label: "GPT-4o Mini Audio" },
+        "o1": { input: 15.00, cached: 7.50, output: 60.00, label: "o1" },
+        "o1-pro": { input: 150.00, cached: 150.00, output: 600.00, label: "o1 Pro" },
+        "o3-pro": { input: 20.00, cached: 20.00, output: 80.00, label: "o3 Pro" },
+        "o3": { input: 2.00, cached: 0.50, output: 8.00, label: "o3" },
+        "o3-deep-research": { input: 10.00, cached: 2.50, output: 40.00, label: "o3 Deep Research" },
+        "o4-mini": { input: 1.10, cached: 0.275, output: 4.40, label: "o4 Mini" },
+        "o4-mini-deep-research": { input: 2.00, cached: 0.50, output: 8.00, label: "o4 Mini Deep Research" },
+        "o3-mini": { input: 1.10, cached: 0.55, output: 4.40, label: "o3 Mini" },
+        "o1-mini": { input: 1.10, cached: 0.55, output: 4.40, label: "o1 Mini" },
+    },
+    pinecone: {
+      storage: 0.33, 
+      read: 8.25,   
+      write: 4.50,
+      plans: {
+        starter: { min: 0, label: "Starter (Free)" },
+        standard: { min: 0, label: "Serverless (Usage Based)" },
+        enterprise: { min: 500, label: "Enterprise" }
+      }
+    }
+  }
+};
+
