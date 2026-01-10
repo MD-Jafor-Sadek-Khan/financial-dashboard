@@ -1,80 +1,86 @@
-import React, { useState } from 'react';
-import Papa from 'papaparse';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
-    UploadCloud, FileSpreadsheet, X, // <--- Added FileSpreadsheet here
-    TrendingUp, Layers, Users, Server
+    UploadCloud, FileSpreadsheet, X,
+    TrendingUp, Layers, Users, Server,
+    Filter, Calendar, Search, ArrowUp, ArrowDown, ArrowUpDown,
+    Cpu
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     PieChart, Pie, Cell, Line, ComposedChart
 } from 'recharts';
 
-const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'];
 
-export default function DailyUsage({ pricing }) {
+export default function DailyUsage({ pricing = {} }) {
     const [fileName, setFileName] = useState(null);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState(null);
     const [rowCount, setRowCount] = useState(0);
 
-    // We only store the AGGREGATED SUMMARY, not the raw rows
+    // Filter & Data States
+    const rawDataRef = useRef([]); // Stores optimized raw rows
     const [stats, setStats] = useState(null);
+    
+    // Available options for filters (populated on load)
+    const [availableOptions, setAvailableOptions] = useState({
+        departments: [],
+        models: []
+    });
 
-    const handleFileUpload = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    // Active Filters
+    const [filters, setFilters] = useState({
+        dateRange: 'all', // '7', '30', 'all'
+        departments: [],  // Multi-select array
+        user: '',         // Search text
+        model: 'all',     // Dropdown
+        minCost: 0        // Slider
+    });
 
-        setFileName(file.name);
-        setProcessing(true);
-        setError(null);
-        setRowCount(0);
+    // Sort Configuration
+    const [sortConfig, setSortConfig] = useState({
+        daily: { key: 'date', direction: 'asc' },
+        dept: { key: 'cost', direction: 'desc' },
+        user: { key: 'cost', direction: 'desc' },
+        node: { key: 'cost', direction: 'desc' }
+    });
 
-        // Mutable storage for aggregation during parsing
-        const tempStats = {
-            totalCost: 0,
-            totalTokens: 0,
-            uniqueExecutions: new Set(),
-            dailyMap: {},
-            deptMap: {},
-            userMap: {},
-            nodeMap: {}
-        };
+    // Helper: Sort Function
+    const getSortedData = (data, tableKey) => {
+        const config = sortConfig[tableKey];
+        if (!data || !config) return data;
 
-        let rowsProcessed = 0;
+        return [...data].sort((a, b) => {
+            let aVal = a[config.key];
+            let bVal = b[config.key];
 
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            worker: true, // Key: Runs in a separate thread
-            step: (results) => {
-                const row = results.data;
-                rowsProcessed++;
-                // Process row and immediately discard it
-                processSingleRow(row, tempStats, pricing);
+            if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+            if (typeof bVal === 'string') bVal = bVal.toLowerCase();
 
-                // Update UI counter every 5000 rows to avoid re-render lag
-                if (rowsProcessed % 5000 === 0) {
-                    setRowCount(rowsProcessed);
-                }
-            },
-            complete: () => {
-                finalizeStats(tempStats);
-                setRowCount(rowsProcessed);
-                setProcessing(false);
-            },
-            error: (err) => {
-                console.error(err);
-                setError("Failed to parse CSV. Ensure it is a valid CSV file.");
-                setProcessing(false);
-            }
+            if (aVal < bVal) return config.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return config.direction === 'asc' ? 1 : -1;
+            return 0;
         });
     };
 
-    const processSingleRow = (row, acc, pricing) => {
-        // Safe Key Finding (CSV keys might have spaces/different casing)
-        const findKey = (obj, target) => Object.keys(obj).find(k => k.toLowerCase().trim() === target.toLowerCase().trim());
+    // Helper: Toggle Sort
+    const handleSort = (key, table) => {
+        setSortConfig(prev => ({
+            ...prev,
+            [table]: {
+                key,
+                direction: prev[table].key === key && prev[table].direction === 'desc' ? 'asc' : 'desc'
+            }
+        }));
+    };
 
-        // Extract Data using flexible key matching
+    const optimizeRow = (row, pricing) => {
+        // Guard against missing pricing data
+        if (!pricing || !pricing.openai) return null;
+
+        // Safe Key Finding
+        const findKey = (obj, target) => Object.keys(obj).find(k => k.toLowerCase().trim() === target.toLowerCase().trim());
+        
         const modelRaw = row[findKey(row, 'Model')] || 'unknown';
         const department = row[findKey(row, 'Department')] || 'Unassigned';
         const user = row[findKey(row, 'User')] || 'Unknown';
@@ -86,55 +92,204 @@ export default function DailyUsage({ pricing }) {
         const output = parseFloat(row[findKey(row, 'Output Tokens')] || 0);
         const cached = parseFloat(row[findKey(row, 'Cached Tokens')] || row[findKey(row, 'Cache')] || 0);
 
-        // --- COST CALCULATION ---
+        // Calculate Cost
         let modelPriceKey = Object.keys(pricing.openai).find(k => modelRaw.includes(k));
-        const rates = pricing.openai[modelPriceKey] || { input: 0, output: 0, cached: 0 };
-
+        // Fallback to default if model not found
+        const rates = (modelPriceKey && pricing.openai[modelPriceKey]) || { input: 0, output: 0, cached: 0 };
         const freshInput = Math.max(0, input - cached);
-        const cost =
-            ((freshInput / 1e6) * rates.input) +
-            ((cached / 1e6) * (rates.cached || rates.input)) +
-            ((output / 1e6) * rates.output);
+        
+        const cost = ((freshInput / 1e6) * rates.input) +
+                     ((cached / 1e6) * (rates.cached || rates.input)) +
+                     ((output / 1e6) * rates.output);
 
-        // --- AGGREGATION ---
+        const dateObj = timeStr ? new Date(timeStr) : new Date();
 
-        // 1. Global
-        acc.totalCost += cost;
-        acc.totalTokens += (input + output);
-        if (executionId) acc.uniqueExecutions.add(executionId);
-
-        // 2. Daily
-        const date = timeStr ? new Date(timeStr).toISOString().split('T')[0] : 'Unknown';
-        if (!acc.dailyMap[date]) acc.dailyMap[date] = { cost: 0, tokens: 0, executionIds: new Set() };
-        acc.dailyMap[date].cost += cost;
-        acc.dailyMap[date].tokens += (input + output);
-        if (executionId) acc.dailyMap[date].executionIds.add(executionId);
-
-        // 3. User
-        if (!acc.userMap[user]) acc.userMap[user] = { cost: 0, tokens: 0, department, executionIds: new Set() };
-        acc.userMap[user].cost += cost;
-        acc.userMap[user].tokens += (input + output);
-        if (executionId) acc.userMap[user].executionIds.add(executionId);
-
-        // 4. Department
-        if (!acc.deptMap[department]) acc.deptMap[department] = { cost: 0, tokens: 0, executionIds: new Set() };
-        acc.deptMap[department].cost += cost;
-        acc.deptMap[department].tokens += (input + output);
-        if (executionId) acc.deptMap[department].executionIds.add(executionId);
-
-        // 5. Node
-        // Simplify node name to group variations
-        const cleanNodeName = nodeName.trim();
-        const nodeKey = `${cleanNodeName} (${modelRaw})`;
-        if (!acc.nodeMap[nodeKey]) acc.nodeMap[nodeKey] = { name: cleanNodeName, model: modelRaw, cost: 0, rowCount: 0 };
-        acc.nodeMap[nodeKey].cost += cost;
-        acc.nodeMap[nodeKey].rowCount += 1;
+        // Return Minified Object for Memory Efficiency
+        return {
+            id: executionId,
+            ts: dateObj.getTime(), // Timestamp for fast date filtering
+            date: dateObj.toISOString().split('T')[0],
+            dpt: department,
+            usr: user,
+            mdl: modelRaw,
+            nd: nodeName.trim(),
+            c: cost,
+            t: input + output
+        };
     };
 
-    const finalizeStats = (tempStats) => {
-        // --- Transform Maps to Sorted Arrays for Charts ---
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-        // 1. Daily Trend
+        // Check if pricing is loaded
+        if (!pricing || !pricing.openai) {
+            setError("Pricing configuration is missing. Please verify settings.");
+            return;
+        }
+
+        setFileName(file.name);
+        setProcessing(true);
+        setError(null);
+        setRowCount(0);
+        rawDataRef.current = []; // Clear previous data
+
+        // Temporary Sets for filter population
+        const depts = new Set();
+        const models = new Set();
+
+        const reader = new FileReader();
+        
+        reader.onload = (event) => {
+            const text = event.target.result;
+            // Split by newline
+            const lines = text.split('\n');
+            
+            if (lines.length === 0) {
+                setProcessing(false);
+                setError("File is empty");
+                return;
+            }
+
+            // Parse Headers
+            const headers = lines[0].split(',').map(h => h.trim());
+            
+            let processedCount = 0;
+            let currentIndex = 1; // Skip header
+            const totalLines = lines.length;
+            const CHUNK_SIZE = 5000; // Process in chunks to avoid freezing UI
+
+            // Custom Parsing Loop
+            const processChunk = () => {
+                const chunkEnd = Math.min(currentIndex + CHUNK_SIZE, totalLines);
+                
+                for (let i = currentIndex; i < chunkEnd; i++) {
+                    const line = lines[i];
+                    if (!line || !line.trim()) continue;
+
+                    // Simple split (handles standard CSVs)
+                    const values = line.split(',');
+                    const row = {};
+                    headers.forEach((h, idx) => {
+                        // Strip quotes if present
+                        let val = values[idx] || '';
+                        if (val.startsWith('"') && val.endsWith('"')) {
+                            val = val.slice(1, -1);
+                        }
+                        row[h] = val.trim();
+                    });
+
+                    processedCount++;
+
+                    // Optimize Row immediately
+                    const processedRow = optimizeRow(row, pricing);
+                    if (processedRow) {
+                        rawDataRef.current.push(processedRow);
+                        if (processedRow.dpt) depts.add(processedRow.dpt);
+                        if (processedRow.mdl) models.add(processedRow.mdl);
+                    }
+                }
+
+                currentIndex = chunkEnd;
+                setRowCount(processedCount);
+
+                if (currentIndex < totalLines) {
+                    // Schedule next chunk
+                    setTimeout(processChunk, 0);
+                } else {
+                    // All Done
+                    setAvailableOptions({
+                        departments: Array.from(depts).sort(),
+                        models: Array.from(models).sort()
+                    });
+                    
+                    recalculateStats(); // Initial calculation
+                    setProcessing(false);
+                }
+            };
+
+            // Start processing
+            processChunk();
+        };
+
+        reader.onerror = () => {
+            console.error(reader.error);
+            setError("Failed to read file.");
+            setProcessing(false);
+        };
+
+        reader.readAsText(file);
+    };
+
+    // The heavy lifter: Aggregates filtered data
+    const recalculateStats = () => {
+        const allRows = rawDataRef.current;
+        if (allRows.length === 0) return;
+
+        // 1. Filter
+        const now = new Date();
+        let cutoffTime = 0;
+        if (filters.dateRange === '7') cutoffTime = now.getTime() - (7 * 24 * 60 * 60 * 1000);
+        if (filters.dateRange === '30') cutoffTime = now.getTime() - (30 * 24 * 60 * 60 * 1000);
+
+        const activeDepts = new Set(filters.departments);
+        const searchUser = filters.user.toLowerCase();
+
+        const filteredRows = allRows.filter(r => {
+            if (cutoffTime > 0 && r.ts < cutoffTime) return false;
+            if (filters.departments.length > 0 && !activeDepts.has(r.dpt)) return false;
+            if (filters.model !== 'all' && r.mdl !== filters.model) return false;
+            if (filters.minCost > 0 && r.c < filters.minCost) return false;
+            if (searchUser && !r.usr.toLowerCase().includes(searchUser)) return false;
+            return true;
+        });
+
+        // 2. Aggregate
+        const tempStats = {
+            totalCost: 0,
+            totalTokens: 0,
+            uniqueExecutions: new Set(),
+            dailyMap: {},
+            deptMap: {},
+            userMap: {},
+            nodeMap: {}
+        };
+
+        // Determine date range for average calculations
+        const uniqueDates = new Set();
+
+        filteredRows.forEach(r => {
+            tempStats.totalCost += r.c;
+            tempStats.totalTokens += r.t;
+            if (r.id) tempStats.uniqueExecutions.add(r.id);
+            uniqueDates.add(r.date);
+
+            // Daily
+            if (!tempStats.dailyMap[r.date]) tempStats.dailyMap[r.date] = { cost: 0, tokens: 0, executionIds: new Set() };
+            tempStats.dailyMap[r.date].cost += r.c;
+            tempStats.dailyMap[r.date].executionIds.add(r.id);
+
+            // Dept
+            if (!tempStats.deptMap[r.dpt]) tempStats.deptMap[r.dpt] = { cost: 0, tokens: 0, executionIds: new Set() };
+            tempStats.deptMap[r.dpt].cost += r.c;
+            tempStats.deptMap[r.dpt].executionIds.add(r.id);
+
+            // User
+            if (!tempStats.userMap[r.usr]) tempStats.userMap[r.usr] = { cost: 0, tokens: 0, department: r.dpt, executionIds: new Set() };
+            tempStats.userMap[r.usr].cost += r.c;
+            tempStats.userMap[r.usr].tokens += r.t;
+            tempStats.userMap[r.usr].executionIds.add(r.id);
+
+            // Node
+            const nodeKey = `${r.nd} (${r.mdl})`;
+            if (!tempStats.nodeMap[nodeKey]) tempStats.nodeMap[nodeKey] = { name: r.nd, model: r.mdl, cost: 0, rowCount: 0 };
+            tempStats.nodeMap[nodeKey].cost += r.c;
+            tempStats.nodeMap[nodeKey].rowCount += 1;
+        });
+
+        const dayCount = uniqueDates.size || 1;
+
+        // 3. Flatten for Charts/Tables
         let runningTotal = 0;
         const dailyData = Object.entries(tempStats.dailyMap)
             .sort((a, b) => new Date(a[0]) - new Date(b[0]))
@@ -148,17 +303,15 @@ export default function DailyUsage({ pricing }) {
                 };
             });
 
-        // 2. Departments
         const departmentData = Object.entries(tempStats.deptMap)
             .map(([name, data]) => ({
                 name,
                 cost: data.cost,
-                tokens: data.tokens,
-                uniqueExecutions: data.executionIds.size
-            }))
-            .sort((a, b) => b.cost - a.cost);
+                pct: (data.cost / tempStats.totalCost) * 100,
+                uniqueExecutions: data.executionIds.size,
+                avgDaily: data.cost / dayCount
+            }));
 
-        // 3. Users (Limit to Top 100 to save memory)
         const userData = Object.entries(tempStats.userMap)
             .map(([name, data]) => ({
                 name,
@@ -166,14 +319,11 @@ export default function DailyUsage({ pricing }) {
                 tokens: data.tokens,
                 department: data.department,
                 uniqueExecutions: data.executionIds.size
-            }))
-            .sort((a, b) => b.cost - a.cost)
-            .slice(0, 100);
+            }));
+            // Sort later in UI
 
-        // 4. Nodes (Limit to Top 50)
-        const nodeData = Object.values(tempStats.nodeMap)
-            .sort((a, b) => b.cost - a.cost)
-            .slice(0, 50);
+        const nodeData = Object.values(tempStats.nodeMap);
+            // Sort later in UI
 
         setStats({
             totalCost: tempStats.totalCost,
@@ -186,17 +336,64 @@ export default function DailyUsage({ pricing }) {
         });
     };
 
+    // Effect: Trigger recalculation when filters change
+    useEffect(() => {
+        if (rawDataRef.current.length > 0) {
+            // Debounce for performance if dragging slider
+            const timer = setTimeout(() => {
+                recalculateStats();
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [filters]);
+
     const handleReset = () => {
         setStats(null);
         setFileName(null);
         setRowCount(0);
         setError(null);
+        rawDataRef.current = [];
+        setFilters({
+            dateRange: 'all',
+            departments: [],
+            user: '',
+            model: 'all',
+            minCost: 0
+        });
     };
+
+    // Helper Component for Sort Headers
+    const SortHeader = ({ label, tableKey, colKey, align = 'left' }) => {
+        const isActive = sortConfig[tableKey].key === colKey;
+        return (
+            <th 
+                className={`px-4 py-3 cursor-pointer transition-colors select-none ${isActive ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-100'}`}
+                onClick={() => handleSort(colKey, tableKey)}
+                style={{ textAlign: align }}
+            >
+                <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
+                    {label}
+                    <span className="text-gray-400">
+                        {isActive ? (
+                            sortConfig[tableKey].direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                        ) : (
+                            <ArrowUpDown size={14} className="opacity-0 group-hover:opacity-50" />
+                        )}
+                    </span>
+                </div>
+            </th>
+        );
+    };
+
+    // Derived sorted data for tables
+    const sortedDeptData = useMemo(() => getSortedData(stats?.departmentData, 'dept'), [stats, sortConfig.dept]);
+    const sortedUserData = useMemo(() => getSortedData(stats?.userData, 'user')?.slice(0, 100), [stats, sortConfig.user]);
+    const sortedNodeData = useMemo(() => getSortedData(stats?.nodeData, 'node')?.slice(0, 50), [stats, sortConfig.node]);
 
     return (
         <div className="space-y-6 animate-slide-in pb-12">
 
-            {/* 1. Upload Area - Show if NO stats and NOT processing */}
+            {/* 1. Upload Area */}
             {!stats && !processing && (
                 <div className="bg-white p-12 rounded-xl shadow-sm border-2 border-dashed border-gray-300 text-center hover:border-indigo-400 transition-colors">
                     <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" id="fileUpload" />
@@ -228,7 +425,7 @@ export default function DailyUsage({ pricing }) {
                 </div>
             )}
 
-            {/* 3. Dashboard - Show if stats EXIST */}
+            {/* 3. Dashboard */}
             {stats && (
                 <>
                     {/* Header Controls */}
@@ -250,6 +447,94 @@ export default function DailyUsage({ pricing }) {
                         </button>
                     </div>
 
+                    {/* FILTER BAR - New Feature */}
+                    <div className="glass-card p-4 rounded-lg flex flex-col lg:flex-row gap-4 items-center justify-between border-l-4 border-indigo-500">
+                        <div className="flex items-center gap-2 text-indigo-900 font-bold shrink-0">
+                            <Filter size={20} /> Filters:
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-3 items-center w-full lg:w-auto">
+                            {/* Date Range */}
+                            <div className="relative group">
+                                <Calendar size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                                <select 
+                                    className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none hover:border-indigo-300 transition-colors cursor-pointer appearance-none min-w-[140px]"
+                                    value={filters.dateRange}
+                                    onChange={(e) => setFilters({...filters, dateRange: e.target.value})}
+                                >
+                                    <option value="all">All Time</option>
+                                    <option value="7">Last 7 Days</option>
+                                    <option value="30">Last 30 Days</option>
+                                </select>
+                            </div>
+
+                            {/* Department - Multi-select Simulation via Dropdown */}
+                            <div className="relative">
+                                <Layers size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                                <select 
+                                    className="pl-9 pr-8 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none hover:border-indigo-300 transition-colors cursor-pointer appearance-none min-w-[160px]"
+                                    value={filters.departments.length > 0 ? 'selected' : 'all'}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setFilters({
+                                            ...filters, 
+                                            departments: val === 'all' ? [] : [val] // Simple toggle for now, can be expanded to full multi-select logic
+                                        });
+                                    }}
+                                >
+                                    <option value="all">All Departments</option>
+                                    {availableOptions.departments.map(d => (
+                                        <option key={d} value={d}>{d}</option>
+                                    ))}
+                                </select>
+                                {filters.departments.length > 0 && (
+                                    <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                                        {filters.departments.length}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* User Search */}
+                            <div className="relative">
+                                <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                                <input 
+                                    type="text" 
+                                    placeholder="Search user..."
+                                    className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-w-[160px]"
+                                    value={filters.user}
+                                    onChange={(e) => setFilters({...filters, user: e.target.value})}
+                                />
+                            </div>
+
+                            {/* Model */}
+                            <div className="relative">
+                                <Cpu size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                                <select 
+                                    className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none min-w-[160px]"
+                                    value={filters.model}
+                                    onChange={(e) => setFilters({...filters, model: e.target.value})}
+                                >
+                                    <option value="all">All Models</option>
+                                    {availableOptions.models.map(m => (
+                                        <option key={m} value={m}>{m}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Min Cost Slider */}
+                            <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-md">
+                                <span className="text-xs font-medium text-gray-500">Min $</span>
+                                <input 
+                                    type="range" min="0" max="100" step="1"
+                                    className="w-24 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                    value={filters.minCost}
+                                    onChange={(e) => setFilters({...filters, minCost: parseFloat(e.target.value)})}
+                                />
+                                <span className="text-xs font-bold text-indigo-600 w-8">${filters.minCost}</span>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* KPI Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="glass-card p-6 rounded-lg border-l-4 border-indigo-500">
@@ -266,7 +551,7 @@ export default function DailyUsage({ pricing }) {
                         </div>
                     </div>
 
-                    {/* Main Charts */}
+                    {/* Main Charts Row */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Daily Trend */}
                         <div className="lg:col-span-2 glass-card p-6 rounded-lg">
@@ -321,24 +606,55 @@ export default function DailyUsage({ pricing }) {
                         </div>
                     </div>
 
-                    {/* Top Users Table */}
-                    <div className="glass-card p-6 rounded-lg">
+                    {/* NEW: Detailed Department Breakdown Table */}
+                    <div className="glass-card p-6 rounded-lg animate-slide-in">
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <Users size={18} className="text-gray-400" /> Top 100 Users by Cost
+                            <Layers size={18} className="text-gray-400" /> Department Breakdown
                         </h3>
-                        <div className="overflow-auto max-h-[400px]">
+                        <div className="overflow-auto max-h-[300px]">
                             <table className="w-full text-sm text-left">
-                                <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0">
+                                <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
                                     <tr>
-                                        <th className="px-4 py-3">User</th>
-                                        <th className="px-4 py-3">Department</th>
-                                        <th className="px-4 py-3 text-right">Execs</th>
-                                        <th className="px-4 py-3 text-right">Tokens</th>
-                                        <th className="px-4 py-3 text-right">Cost</th>
+                                        <SortHeader tableKey="dept" colKey="name" label="Department" />
+                                        <SortHeader tableKey="dept" colKey="cost" label="Total Cost" align="right" />
+                                        <SortHeader tableKey="dept" colKey="pct" label="% Total" align="right" />
+                                        <SortHeader tableKey="dept" colKey="uniqueExecutions" label="Executions" align="right" />
+                                        <SortHeader tableKey="dept" colKey="avgDaily" label="Avg Daily Cost" align="right" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {stats.userData.map((u, i) => (
+                                    {sortedDeptData.map((d, i) => (
+                                        <tr key={i} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-4 py-2 font-medium text-gray-900">{d.name}</td>
+                                            <td className="px-4 py-2 text-right text-indigo-600 font-bold">${d.cost.toFixed(2)}</td>
+                                            <td className="px-4 py-2 text-right text-gray-600">{d.pct.toFixed(1)}%</td>
+                                            <td className="px-4 py-2 text-right font-mono text-xs">{d.uniqueExecutions.toLocaleString()}</td>
+                                            <td className="px-4 py-2 text-right text-gray-500">${d.avgDaily.toFixed(2)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Top Users Table */}
+                    <div className="glass-card p-6 rounded-lg">
+                        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <Users size={18} className="text-gray-400" /> Top Users by Cost
+                        </h3>
+                        <div className="overflow-auto max-h-[400px]">
+                            <table className="w-full text-sm text-left">
+                                <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
+                                    <tr>
+                                        <SortHeader tableKey="user" colKey="name" label="User" />
+                                        <SortHeader tableKey="user" colKey="department" label="Department" />
+                                        <SortHeader tableKey="user" colKey="uniqueExecutions" label="Execs" align="right" />
+                                        <SortHeader tableKey="user" colKey="tokens" label="Tokens" align="right" />
+                                        <SortHeader tableKey="user" colKey="cost" label="Cost" align="right" />
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {sortedUserData.map((u, i) => (
                                         <tr key={i} className="hover:bg-gray-50">
                                             <td className="px-4 py-2 font-medium text-gray-900">{u.name}</td>
                                             <td className="px-4 py-2 text-gray-500">
@@ -361,16 +677,16 @@ export default function DailyUsage({ pricing }) {
                         </h3>
                         <div className="overflow-auto max-h-[400px]">
                             <table className="w-full text-sm text-left">
-                                <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0">
+                                <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
                                     <tr>
-                                        <th className="px-4 py-3">Node Name</th>
-                                        <th className="px-4 py-3">Model</th>
-                                        <th className="px-4 py-3 text-right">Ops Count</th>
-                                        <th className="px-4 py-3 text-right">Cost</th>
+                                        <SortHeader tableKey="node" colKey="name" label="Node Name" />
+                                        <SortHeader tableKey="node" colKey="model" label="Model" />
+                                        <SortHeader tableKey="node" colKey="rowCount" label="Ops Count" align="right" />
+                                        <SortHeader tableKey="node" colKey="cost" label="Cost" align="right" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {stats.nodeData.map((n, i) => (
+                                    {sortedNodeData.map((n, i) => (
                                         <tr key={i} className="hover:bg-gray-50">
                                             <td className="px-4 py-2 font-medium text-gray-900">{n.name}</td>
                                             <td className="px-4 py-2 text-blue-600 text-xs">{n.model}</td>
