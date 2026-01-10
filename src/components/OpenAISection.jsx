@@ -27,6 +27,13 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
         setNodes(nodes.filter((_, i) => i !== index));
     };
 
+    const bulkUpdateModel = (newModel) => {
+        if (window.confirm(`Switch all ${nodes.length} workflows to ${newModel}?`)) {
+            const updatedNodes = nodes.map(node => ({ ...node, model: newModel }));
+            setNodes(updatedNodes);
+        }
+    };
+
     const getRowCost = (node) => {
         const modelPrice = pricing.openai[node.model];
         if (!modelPrice) return 0;
@@ -50,15 +57,30 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
     const totalMonthlyExecutions = nodes.reduce((acc, node) => acc + ((node.executionsPerDay || 0) * 30), 0);
 
     return (
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mt-6">
+        <div className="glass-card p-6 rounded-lg border border-gray-200 mt-6">
             <div className="flex justify-between items-center mb-4 border-b pb-2">
                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                     <Activity className="text-blue-600" size={20} />
                     2. OpenAI Intelligence Costs
                 </h2>
-                <button onClick={addNode} className="flex items-center text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100 font-medium">
-                    <PlusCircle size={16} className="mr-1" /> Add Workflow
-                </button>
+                
+                {/* Bulk Action & Add Button */}
+                <div className="flex items-center gap-2">
+                    <select 
+                        className="text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white border px-2 py-1"
+                        onChange={(e) => bulkUpdateModel(e.target.value)}
+                        value=""
+                    >
+                        <option value="" disabled>Bulk Change Model...</option>
+                        {Object.entries(pricing.openai).map(([key, val]) => (
+                             <option key={key} value={key}>{val.label}</option>
+                        ))}
+                    </select>
+
+                    <button onClick={addNode} className="flex items-center text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100 font-medium">
+                        <PlusCircle size={16} className="mr-1" /> Add Workflow
+                    </button>
+                </div>
             </div>
 
             <div className="overflow-x-auto">
