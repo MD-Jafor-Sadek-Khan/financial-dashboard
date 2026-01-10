@@ -104,13 +104,17 @@ export default {
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.18",
+    "arima": "^0.2.5",
     "clsx": "^2.1.1",
+    "downsample": "^1.4.0",
     "firebase": "^12.7.0",
+    "idb-keyval": "^6.2.2",
     "lucide-react": "^0.562.0",
     "papaparse": "^5.5.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "recharts": "^3.6.0",
+    "simple-statistics": "^7.8.8",
     "tailwind-merge": "^3.4.0",
     "xlsx": "^0.18.5"
   },
@@ -217,14 +221,13 @@ import PineconeSection from './components/PineconeSection';
 import SettingsModal from './components/SettingsModal';
 import Toast from './components/Toast';
 import DailyUsage from './components/DailyUsage';
-import DataGenerator from './components/DataGenerator'; // <--- IMPORT NEW COMPONENT
+import DataGenerator from './components/DataGenerator';
 
-// Chart Colors
+// Chart Colors matched to design system
 const COLORS = ['#f97316', '#2563eb', '#4f46e5'];
 
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  // Default state is 'analytics'
   const [activeTab, setActiveTab] = useState('analytics');
   const [status, setStatus] = useState("Initializing...");
   const [toast, setToast] = useState(null);
@@ -269,8 +272,9 @@ function App() {
         'OpenAI',
         node.name,
         `${node.model} (${node.executionsPerDay} runs/day)`,
-        // Re-calc row cost for CSV
-        ((pricing.openai[node.model].input * (node.inputTokens / 1e6) + pricing.openai[node.model].output * (node.outputTokens / 1e6)) * node.executionsPerDay * daysInMonth).toFixed(2)
+        // Re-calc row cost logic for CSV consistency
+        // Using simplified logic here for the export row; detailed logic is in the component/utils
+         (( (pricing.openai[node.model]?.input || 0) * (node.inputTokens / 1e6) + (pricing.openai[node.model]?.output || 0) * (node.outputTokens / 1e6)) * node.executionsPerDay * daysInMonth).toFixed(2)
       ]),
       ['TOTAL', '', `Based on ${daysInMonth} days`, grandTotal.toFixed(2)]
     ];
@@ -360,18 +364,18 @@ function App() {
 
           {/* Right Column: Visualization Sticky Panel */}
           <div className="lg:col-span-1">
-            <div className="glass-card p-6 rounded-lg border border-gray-200 sticky top-8">
-              <div className="flex justify-between items-center mb-4">
+            <div className="glass-card p-6 rounded-xl border border-gray-200 sticky top-6">
+              <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <PieIcon size={20} className="text-slate-500" /> Cost Breakdown
+                  <PieIcon size={20} className="text-gray-400" /> Cost Breakdown
                 </h2>
-                <button onClick={handleExport} className="p-1.5 bg-gray-50 rounded hover:bg-gray-100 text-gray-600" title="Export Forecast CSV">
-                  <Download size={16} />
+                <button onClick={handleExport} className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors" title="Export Forecast CSV">
+                  <Download size={18} />
                 </button>
               </div>
 
               {/* The Chart */}
-              <div className="h-64 w-full">
+              <div className="h-64 w-full mb-6 relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -386,21 +390,21 @@ function App() {
                       ))}
                     </Pie>
                     <Tooltip formatter={(value) => formatCurrency(value)} />
-                    <Legend />
+                    <Legend wrapperStyle={{fontSize: '12px', paddingTop: '10px'}} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Grand Total Card */}
-              <div className="mt-6 pt-6 border-t border-dashed border-gray-200 text-center">
-                <div className="text-gray-500 text-sm font-medium uppercase tracking-wide">
-                  Total Monthly OpEx
+              <div className="pt-6 border-t border-dashed border-gray-200 text-center">
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Projected Monthly OpEx
                 </div>
-                <div className="text-4xl font-extrabold text-gradient mt-2">
+                <div className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-500 mt-2 pb-1">
                   {formatCurrency(grandTotal)}
                 </div>
-                <div className="text-xs text-gray-400 mt-2">
-                  *Calculated for {getDaysInCurrentMonth()} days
+                <div className="text-xs text-gray-400 mt-3 font-medium bg-gray-50 inline-block px-3 py-1 rounded-full border border-gray-100">
+                  *Calculated based on {getDaysInCurrentMonth()} calendar days
                 </div>
               </div>
             </div>
@@ -415,51 +419,50 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 font-sans text-slate-800">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-800">
+      <div className="max-w-7xl mx-auto">
 
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Financial & Operational Impact Dashboard</h1>
-            <p className="text-slate-500">Real-time cost modeling & usage analytics</p>
+            <p className="text-slate-500 mt-1">Real-time cost modeling & usage analytics</p>
           </div>
           <div className="flex gap-3">
-            <div className="glass-card px-4 py-2 rounded shadow text-sm font-medium flex items-center min-w-[140px] justify-center">
+            <div className="glass-card px-4 py-2 rounded-lg shadow-sm text-sm font-medium flex items-center min-w-[140px] justify-center border border-gray-200">
               <span className={`w-2 h-2 rounded-full mr-2 ${status.includes("Fail") || status.includes("Error") || status.includes("Offline") ? "bg-red-500" : "bg-green-500"}`}></span>
               {status}
             </div>
 
-            <button onClick={loadData} className="p-2 glass-card rounded shadow hover:bg-white text-gray-700" title="Refresh from DB">
+            <button onClick={loadData} className="p-2 glass-card rounded-lg shadow-sm border border-gray-200 hover:bg-white text-gray-700 transition-all" title="Refresh from DB">
               <RefreshCw size={20} />
             </button>
-            <button onClick={() => setIsSettingsOpen(true)} className="p-2 glass-card rounded shadow hover:bg-white text-gray-700">
+            <button onClick={() => setIsSettingsOpen(true)} className="p-2 glass-card rounded-lg shadow-sm border border-gray-200 hover:bg-white text-gray-700 transition-all">
               <Settings size={20} />
             </button>
-            <button onClick={() => handleSave(false)} className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded shadow hover:bg-gray-800 transition-colors">
+            <button onClick={() => handleSave(false)} className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-md hover:bg-slate-800 transition-all active:scale-95">
               <Save size={18} /> Save Session
             </button>
           </div>
         </header>
 
         {/* Tab Navigation */}
-        <div className="mb-8 flex space-x-1 glass-card p-1 rounded-lg shadow-sm w-fit overflow-x-auto">
+        <div className="mb-8 flex space-x-1 glass-card p-1.5 rounded-xl shadow-sm w-fit overflow-x-auto border border-gray-200">
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'analytics' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:text-gray-900'}`}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'analytics' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
           >
             <BarChart2 size={18} /> Daily Analytics
           </button>
           <button
             onClick={() => setActiveTab('calculator')}
-            className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'calculator' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:text-gray-900'}`}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'calculator' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
           >
             <Calculator size={18} /> Forecast Calculator
           </button>
-          {/* NEW GENERATOR TAB */}
           <button
             onClick={() => setActiveTab('generator')}
-            className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'generator' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:text-gray-900'}`}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'generator' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
           >
             <Database size={18} /> Test Data Generator
           </button>
@@ -586,6 +589,7 @@ body {
 ================================================================================
 
 import React from 'react';
+import { Cpu, Users, Clock } from 'lucide-react';
 
 export default function N8nSection({ data, setData, pricing, calculatedCost }) {
     const { plan, users, executionsPerUser, duration } = data;
@@ -593,15 +597,24 @@ export default function N8nSection({ data, setData, pricing, calculatedCost }) {
     const totalExecutions = users * executionsPerUser;
     const isOverLimit = totalExecutions > currentPlan.limit;
 
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">1. N8n Workflow Execution</h2>
+    // Styles matching Daily Analytics inputs
+    const inputClass = "w-full px-3 py-2 border border-gray-200 rounded-lg bg-white/50 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all";
+    const labelClass = "block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5";
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    return (
+        <div className="glass-card p-6 rounded-xl animate-slide-in">
+            <div className="flex items-center gap-2 mb-6 border-b border-gray-100 pb-4">
+                <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
+                    <Cpu size={20} />
+                </div>
+                <h2 className="text-lg font-bold text-gray-800">1. N8n Infrastructure</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Select Plan</label>
+                    <label className={labelClass}>License Plan</label>
                     <select
-                        className="w-full p-2 border rounded"
+                        className={inputClass}
                         value={plan}
                         onChange={(e) => setData({ ...data, plan: e.target.value })}
                     >
@@ -612,47 +625,58 @@ export default function N8nSection({ data, setData, pricing, calculatedCost }) {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Billing Duration</label>
+                    <label className={labelClass}>Billing Cycle</label>
                     <select
-                        className="w-full p-2 border rounded"
+                        className={inputClass}
                         value={duration}
                         onChange={(e) => setData({ ...data, duration: e.target.value })}
                     >
-                        <option value="monthly">Monthly</option>
-                        <option value="yearly">Yearly</option>
+                        <option value="monthly">Monthly Billing</option>
+                        <option value="yearly">Yearly (Discounted)</option>
                     </select>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Number of Users</label>
-                    <input
-                        type="number" className="w-full p-2 border rounded"
-                        value={users}
-                        onChange={(e) => setData({ ...data, users: parseInt(e.target.value) || 0 })}
-                    />
+                    <label className={labelClass}>Active Users</label>
+                    <div className="relative">
+                        <Users size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                        <input
+                            type="number" 
+                            className={`${inputClass} pl-9`}
+                            value={users}
+                            min="0"
+                            onChange={(e) => setData({ ...data, users: parseInt(e.target.value) || 0 })}
+                        />
+                    </div>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Executions per User</label>
-                    <input
-                        type="number" className="w-full p-2 border rounded"
-                        value={executionsPerUser}
-                        onChange={(e) => setData({ ...data, executionsPerUser: parseInt(e.target.value) || 0 })}
-                    />
+                    <label className={labelClass}>Executions / User</label>
+                    <div className="relative">
+                        <Clock size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                        <input
+                            type="number" 
+                            className={`${inputClass} pl-9`}
+                            value={executionsPerUser}
+                            min="0"
+                            onChange={(e) => setData({ ...data, executionsPerUser: parseInt(e.target.value) || 0 })}
+                        />
+                    </div>
                 </div>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-md flex justify-between items-center">
+            {/* KPI Summary Card Style */}
+            <div className="bg-gray-50/50 border border-gray-100 p-4 rounded-xl flex justify-between items-center">
                 <div>
-                    <div className="text-sm text-gray-500">Total Executions Required</div>
-                    <div className={`text-xl font-bold ${isOverLimit ? 'text-red-600' : 'text-gray-900'}`}>
-                        {totalExecutions.toLocaleString()} / {currentPlan.limit.toLocaleString()}
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Total Load</div>
+                    <div className={`text-lg font-bold ${isOverLimit ? 'text-red-600' : 'text-gray-800'}`}>
+                        {totalExecutions.toLocaleString()} <span className="text-sm font-normal text-gray-400">/ {currentPlan.limit.toLocaleString()} limit</span>
                     </div>
-                    {isOverLimit && <div className="text-xs text-red-500 font-bold mt-1">⚠️ EXCEEDS PLAN LIMIT</div>}
+                    {isOverLimit && <div className="text-[10px] text-red-500 font-bold mt-1 bg-red-50 inline-block px-1.5 py-0.5 rounded">⚠️ PLAN LIMIT EXCEEDED</div>}
                 </div>
                 <div className="text-right">
-                    <div className="text-sm text-gray-500">Estimated Cost ({duration})</div>
-                    <div className="text-2xl font-bold text-indigo-600">${calculatedCost.toFixed(2)}</div>
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Monthly Cost</div>
+                    <div className="text-2xl font-extrabold text-gray-900">${calculatedCost.toFixed(2)}</div>
                 </div>
             </div>
         </div>
@@ -665,13 +689,12 @@ export default function N8nSection({ data, setData, pricing, calculatedCost }) {
 ================================================================================
 
 import React from 'react';
-import { Trash2, PlusCircle, Activity } from 'lucide-react';
+import { Trash2, PlusCircle, Zap, Sparkles } from 'lucide-react';
 
 export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost }) {
 
     const updateNode = (index, field, value) => {
         const newNodes = [...nodes];
-        // Keep name/model as strings, others as numbers
         newNodes[index][field] = (field === 'name' || field === 'model')
             ? value
             : (parseFloat(value) || 0);
@@ -684,7 +707,7 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
             model: 'gpt-4o-mini',
             inputTokens: 1000,
             outputTokens: 200,
-            cacheHitRate: 0, // Default to 0% caching
+            cacheHitRate: 0,
             executionsPerDay: 50
         }]);
     };
@@ -706,77 +729,81 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
 
         const cacheRate = (node.cacheHitRate || 0) / 100;
         const totalInput = node.inputTokens || 0;
-
-        // Price Logic
         const freshPrice = modelPrice.input;
         const cachedPrice = modelPrice.cached !== undefined ? modelPrice.cached : modelPrice.input;
 
         const inputCost = ((totalInput * (1 - cacheRate) / 1e6) * freshPrice) +
             ((totalInput * cacheRate / 1e6) * cachedPrice);
-
         const outputCost = (node.outputTokens / 1e6 * modelPrice.output);
-        const costPerRun = inputCost + outputCost;
-
-        return costPerRun * (node.executionsPerDay || 0) * 30;
+        
+        return (inputCost + outputCost) * (node.executionsPerDay || 0) * 30; // Approx monthly for row view
     };
 
     const totalMonthlyExecutions = nodes.reduce((acc, node) => acc + ((node.executionsPerDay || 0) * 30), 0);
 
-    return (
-        <div className="glass-card p-6 rounded-lg border border-gray-200 mt-6">
-            <div className="flex justify-between items-center mb-4 border-b pb-2">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <Activity className="text-blue-600" size={20} />
-                    2. OpenAI Intelligence Costs
-                </h2>
-                
-                {/* Bulk Action & Add Button */}
-                <div className="flex items-center gap-2">
-                    <select 
-                        className="text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white border px-2 py-1"
-                        onChange={(e) => bulkUpdateModel(e.target.value)}
-                        value=""
-                    >
-                        <option value="" disabled>Bulk Change Model...</option>
-                        {Object.entries(pricing.openai).map(([key, val]) => (
-                             <option key={key} value={key}>{val.label}</option>
-                        ))}
-                    </select>
+    // Input style matching design system
+    const inputTableClass = "w-full bg-transparent border-b border-transparent hover:border-indigo-200 focus:border-indigo-500 focus:ring-0 px-2 py-1 text-sm outline-none transition-colors text-center";
+    const selectClass = "bg-transparent text-sm w-full outline-none cursor-pointer text-gray-700 py-1";
 
-                    <button onClick={addNode} className="flex items-center text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100 font-medium">
-                        <PlusCircle size={16} className="mr-1" /> Add Workflow
+    return (
+        <div className="glass-card p-6 rounded-xl mt-6 animate-slide-in" style={{ animationDelay: '0.1s' }}>
+            <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-2">
+                    <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                        <Zap size={20} />
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-800">2. OpenAI Intelligence</h2>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                    <div className="relative">
+                        <select 
+                            className="appearance-none bg-gray-50 border border-gray-200 text-gray-600 text-xs font-bold rounded-lg pl-3 pr-8 py-2 hover:bg-white hover:border-gray-300 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            onChange={(e) => bulkUpdateModel(e.target.value)}
+                            value=""
+                        >
+                            <option value="" disabled>Bulk Change Model</option>
+                            {Object.entries(pricing.openai).map(([key, val]) => (
+                                 <option key={key} value={key}>{val.label}</option>
+                            ))}
+                        </select>
+                        <Sparkles size={14} className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" />
+                    </div>
+
+                    <button onClick={addNode} className="flex items-center gap-1.5 text-xs font-bold bg-indigo-50 text-indigo-600 px-3 py-2 rounded-lg hover:bg-indigo-100 transition-colors">
+                        <PlusCircle size={14} /> ADD WORKFLOW
                     </button>
                 </div>
             </div>
 
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                    <thead className="bg-gray-50 text-gray-600 uppercase">
+            <div className="overflow-hidden border border-gray-200 rounded-lg">
+                <table className="w-full text-sm text-left border-collapse">
+                    <thead className="bg-gray-50/80">
                         <tr>
-                            <th className="p-3 w-1/5">Workflow Name</th>
-                            <th className="p-3">Model</th>
-                            <th className="p-3 w-24">Input Tks</th>
-                            <th className="p-3 w-24">Output Tks</th>
-                            <th className="p-3 w-24 text-blue-600">Cache Hit %</th>
-                            <th className="p-3 w-28 bg-blue-50/50 text-blue-800 border-b-2 border-blue-200">Runs/Day</th>
-                            <th className="p-3 text-right">Est. Monthly</th>
-                            <th className="p-3 w-10"></th>
+                            <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/4">Workflow Name</th>
+                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Model</th>
+                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">In Tks</th>
+                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Out Tks</th>
+                            <th className="py-3 px-2 text-xs font-bold text-blue-600 uppercase tracking-wider text-center">Cache %</th>
+                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center bg-gray-100/50">Runs/Day</th>
+                            <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Est. Monthly</th>
+                            <th className="py-3 px-2 w-10"></th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-gray-100 bg-white">
                         {nodes.map((node, i) => (
-                            <tr key={i} className="border-b hover:bg-gray-50 transition-colors">
+                            <tr key={i} className="hover:bg-indigo-50/30 transition-colors group">
                                 <td className="p-2">
                                     <input
-                                        className="border rounded w-full p-2 text-gray-700 focus:outline-blue-500"
-                                        placeholder="e.g. Invoice Parser"
+                                        className="w-full bg-transparent border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded px-2 py-1 outline-none text-gray-800 font-medium placeholder-gray-300 text-left"
+                                        placeholder="Name this workflow..."
                                         value={node.name}
                                         onChange={(e) => updateNode(i, 'name', e.target.value)}
                                     />
                                 </td>
                                 <td className="p-2">
                                     <select
-                                        className="border rounded w-full p-2 bg-white"
+                                        className={selectClass}
                                         value={node.model}
                                         onChange={(e) => updateNode(i, 'model', e.target.value)}
                                     >
@@ -786,37 +813,39 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
                                     </select>
                                 </td>
                                 <td className="p-2">
-                                    <input type="number" className="border rounded w-full p-2 text-center" value={node.inputTokens} onChange={(e) => updateNode(i, 'inputTokens', e.target.value)} />
+                                    <input type="number" min="0" className={inputTableClass} value={node.inputTokens} onChange={(e) => updateNode(i, 'inputTokens', e.target.value)} />
                                 </td>
                                 <td className="p-2">
-                                    <input type="number" className="border rounded w-full p-2 text-center" value={node.outputTokens} onChange={(e) => updateNode(i, 'outputTokens', e.target.value)} />
+                                    <input type="number" min="0" className={inputTableClass} value={node.outputTokens} onChange={(e) => updateNode(i, 'outputTokens', e.target.value)} />
                                 </td>
-                                {/* Cache Percentage Input */}
                                 <td className="p-2">
-                                    <div className="relative">
+                                    <div className="relative w-16 mx-auto">
                                         <input
                                             type="number"
                                             min="0" max="100"
-                                            className="border border-blue-200 rounded w-full p-2 text-center text-blue-600 font-medium"
+                                            className={`${inputTableClass} text-blue-600 font-bold pr-4`}
                                             value={node.cacheHitRate || 0}
                                             onChange={(e) => updateNode(i, 'cacheHitRate', e.target.value)}
                                         />
-                                        <span className="absolute right-1 top-2 text-xs text-blue-300">%</span>
+                                        <span className="absolute right-1 top-1 text-xs text-blue-300">%</span>
                                     </div>
                                 </td>
-                                <td className="p-2 bg-blue-50/30 border-l border-r border-dashed border-blue-100">
+                                <td className="p-2 bg-gray-50/30 border-l border-r border-gray-100">
                                     <input
                                         type="number"
-                                        className="border border-blue-300 rounded w-full p-2 text-center font-bold text-blue-900 focus:ring-2 focus:ring-blue-500"
+                                        min="0"
+                                        className={`${inputTableClass} font-bold text-gray-900`}
                                         value={node.executionsPerDay}
                                         onChange={(e) => updateNode(i, 'executionsPerDay', e.target.value)}
                                     />
                                 </td>
-                                <td className="p-2 text-right font-mono font-bold text-gray-700">
+                                <td className="p-2 px-4 text-right font-mono text-gray-600">
                                     ${getRowCost(node).toFixed(2)}
                                 </td>
                                 <td className="p-2 text-center">
-                                    <button onClick={() => removeNode(i)} className="text-gray-400 hover:text-red-600"><Trash2 size={16} /></button>
+                                    <button onClick={() => removeNode(i)} className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                                        <Trash2 size={16} />
+                                    </button>
                                 </td>
                             </tr>
                         ))}
@@ -824,17 +853,17 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
                 </table>
             </div>
 
-            {/* Summary Footer */}
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                <div className="flex flex-col justify-center">
-                    <div className="text-sm text-gray-500">Total Volume</div>
-                    <div className="text-lg font-semibold text-gray-700">
+            {/* Footer Summary */}
+            <div className="mt-6 bg-gray-50/50 border border-gray-100 p-4 rounded-xl flex justify-between items-center">
+                <div>
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Total Throughput</div>
+                    <div className="text-lg font-bold text-gray-800">
                         {totalMonthlyExecutions.toLocaleString()} <span className="text-sm font-normal text-gray-400">runs / month</span>
                     </div>
                 </div>
                 <div className="text-right">
-                    <div className="text-sm text-gray-500">Monthly AI Budget</div>
-                    <div className="text-3xl font-bold text-indigo-600">${calculatedCost.toFixed(2)}</div>
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Monthly AI Cost</div>
+                    <div className="text-2xl font-extrabold text-gray-900">${calculatedCost.toFixed(2)}</div>
                 </div>
             </div>
         </div>
@@ -847,6 +876,9 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
 ================================================================================
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { createSeriesCacheKey, getCachedForecast, setCachedForecast } from "../utils/forecastCache";
+import ForecastIntelligence from "./ForecastIntelligence";
+
 import {
     UploadCloud, FileSpreadsheet, X,
     TrendingUp, Layers, Users, Server,
@@ -869,7 +901,7 @@ export default function DailyUsage({ pricing = {} }) {
     // Filter & Data States
     const rawDataRef = useRef([]); // Stores optimized raw rows
     const [stats, setStats] = useState(null);
-    
+
     // Available options for filters (populated on load)
     const [availableOptions, setAvailableOptions] = useState({
         departments: [],
@@ -892,6 +924,120 @@ export default function DailyUsage({ pricing = {} }) {
         user: { key: 'cost', direction: 'desc' },
         node: { key: 'cost', direction: 'desc' }
     });
+
+
+    const forecastWorkerRef = useRef(null);
+
+    const [forecastConfig, setForecastConfig] = useState({
+        enabled: true,
+        horizon: 14,
+        confidence: 0.95,
+        anomalyZ: 3.0,
+    });
+
+    const [forecastResult, setForecastResult] = useState(null);
+    const [forecastError, setForecastError] = useState(null);
+    const [forecastLoading, setForecastLoading] = useState(false);
+
+    useEffect(() => {
+        forecastWorkerRef.current = new Worker(
+            new URL("../workers/forecastWorker.js", import.meta.url),
+            { type: "module" }
+        );
+
+        return () => {
+            forecastWorkerRef.current?.terminate();
+            forecastWorkerRef.current = null;
+        };
+    }, []);
+
+    useEffect(() => {
+        const runForecast = async () => {
+            if (!stats?.dailyData?.length) return;
+            if (!forecastConfig.enabled) return;
+            if (!forecastWorkerRef.current) return;
+
+            setForecastError(null);
+            setForecastLoading(true);
+
+            const dates = stats.dailyData.map(d => d.date);
+            const values = stats.dailyData.map(d => Number(d.cost) || 0);
+
+            const cacheKey = createSeriesCacheKey({
+                dates,
+                values,
+                horizon: forecastConfig.horizon,
+                confidence: forecastConfig.confidence,
+                anomalyZ: forecastConfig.anomalyZ,
+            });
+
+            const cached = await getCachedForecast(cacheKey);
+            if (cached) {
+                setForecastResult(cached);
+                setForecastLoading(false);
+                return;
+            }
+
+            const requestId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+            const handleMessage = async (event) => {
+                const payload = event.data;
+                if (!payload || payload.requestId !== requestId) return;
+
+                forecastWorkerRef.current?.removeEventListener("message", handleMessage);
+
+                if (payload.error) {
+                    setForecastError(payload.error);
+                    setForecastResult(null);
+                    setForecastLoading(false);
+                    return;
+                }
+
+                setForecastResult(payload);
+                setForecastLoading(false);
+                await setCachedForecast(cacheKey, payload);
+            };
+
+            forecastWorkerRef.current.addEventListener("message", handleMessage);
+
+            forecastWorkerRef.current.postMessage({
+                requestId,
+                dates,
+                values,
+                horizon: forecastConfig.horizon,
+                confidence: forecastConfig.confidence,
+                anomalyZ: forecastConfig.anomalyZ,
+            });
+        };
+
+        runForecast();
+    }, [stats, forecastConfig.enabled, forecastConfig.horizon, forecastConfig.confidence, forecastConfig.anomalyZ]);
+
+    const trendData = useMemo(() => {
+        if (!stats?.dailyData?.length) return [];
+
+        const base = stats.dailyData.map((d, i) => ({
+            date: d.date,
+            actualCost: d.cost,
+            // Keep existing fields if you want (cumulativeCost etc.)
+            cumulativeCost: d.cumulativeCost,
+            modelCost: forecastResult?.fitted?.[i] ?? null,
+        }));
+
+        if (!forecastResult?.forecast?.length) return base;
+
+        const future = forecastResult.forecast.map((y, idx) => ({
+            date: forecastResult.forecastDates?.[idx] ?? `+${idx + 1}`,
+            actualCost: null,
+            cumulativeCost: null,
+            modelCost: y,
+            ciLower: forecastResult.ciLower?.[idx] ?? null,
+            ciUpper: forecastResult.ciUpper?.[idx] ?? null,
+        }));
+
+        return [...base, ...future];
+    }, [stats, forecastResult]);
+
 
     // Helper: Sort Function
     const getSortedData = (data, tableKey) => {
@@ -928,7 +1074,7 @@ export default function DailyUsage({ pricing = {} }) {
 
         // Safe Key Finding
         const findKey = (obj, target) => Object.keys(obj).find(k => k.toLowerCase().trim() === target.toLowerCase().trim());
-        
+
         const modelRaw = row[findKey(row, 'Model')] || 'unknown';
         const department = row[findKey(row, 'Department')] || 'Unassigned';
         const user = row[findKey(row, 'User')] || 'Unknown';
@@ -945,10 +1091,10 @@ export default function DailyUsage({ pricing = {} }) {
         // Fallback to default if model not found
         const rates = (modelPriceKey && pricing.openai[modelPriceKey]) || { input: 0, output: 0, cached: 0 };
         const freshInput = Math.max(0, input - cached);
-        
+
         const cost = ((freshInput / 1e6) * rates.input) +
-                     ((cached / 1e6) * (rates.cached || rates.input)) +
-                     ((output / 1e6) * rates.output);
+            ((cached / 1e6) * (rates.cached || rates.input)) +
+            ((output / 1e6) * rates.output);
 
         const dateObj = timeStr ? new Date(timeStr) : new Date();
 
@@ -987,12 +1133,12 @@ export default function DailyUsage({ pricing = {} }) {
         const models = new Set();
 
         const reader = new FileReader();
-        
+
         reader.onload = (event) => {
             const text = event.target.result;
             // Split by newline
             const lines = text.split('\n');
-            
+
             if (lines.length === 0) {
                 setProcessing(false);
                 setError("File is empty");
@@ -1001,7 +1147,7 @@ export default function DailyUsage({ pricing = {} }) {
 
             // Parse Headers
             const headers = lines[0].split(',').map(h => h.trim());
-            
+
             let processedCount = 0;
             let currentIndex = 1; // Skip header
             const totalLines = lines.length;
@@ -1010,7 +1156,7 @@ export default function DailyUsage({ pricing = {} }) {
             // Custom Parsing Loop
             const processChunk = () => {
                 const chunkEnd = Math.min(currentIndex + CHUNK_SIZE, totalLines);
-                
+
                 for (let i = currentIndex; i < chunkEnd; i++) {
                     const line = lines[i];
                     if (!line || !line.trim()) continue;
@@ -1050,7 +1196,7 @@ export default function DailyUsage({ pricing = {} }) {
                         departments: Array.from(depts).sort(),
                         models: Array.from(models).sort()
                     });
-                    
+
                     recalculateStats(); // Initial calculation
                     setProcessing(false);
                 }
@@ -1168,10 +1314,10 @@ export default function DailyUsage({ pricing = {} }) {
                 department: data.department,
                 uniqueExecutions: data.executionIds.size
             }));
-            // Sort later in UI
+        // Sort later in UI
 
         const nodeData = Object.values(tempStats.nodeMap);
-            // Sort later in UI
+        // Sort later in UI
 
         setStats({
             totalCost: tempStats.totalCost,
@@ -1214,7 +1360,7 @@ export default function DailyUsage({ pricing = {} }) {
     const SortHeader = ({ label, tableKey, colKey, align = 'left' }) => {
         const isActive = sortConfig[tableKey].key === colKey;
         return (
-            <th 
+            <th
                 className={`px-4 py-3 cursor-pointer transition-colors select-none ${isActive ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-100'}`}
                 onClick={() => handleSort(colKey, tableKey)}
                 style={{ textAlign: align }}
@@ -1300,15 +1446,15 @@ export default function DailyUsage({ pricing = {} }) {
                         <div className="flex items-center gap-2 text-indigo-900 font-bold shrink-0">
                             <Filter size={20} /> Filters:
                         </div>
-                        
+
                         <div className="flex flex-wrap gap-3 items-center w-full lg:w-auto">
                             {/* Date Range */}
                             <div className="relative group">
                                 <Calendar size={16} className="absolute left-3 top-2.5 text-gray-400" />
-                                <select 
+                                <select
                                     className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none hover:border-indigo-300 transition-colors cursor-pointer appearance-none min-w-[140px]"
                                     value={filters.dateRange}
-                                    onChange={(e) => setFilters({...filters, dateRange: e.target.value})}
+                                    onChange={(e) => setFilters({ ...filters, dateRange: e.target.value })}
                                 >
                                     <option value="all">All Time</option>
                                     <option value="7">Last 7 Days</option>
@@ -1319,15 +1465,11 @@ export default function DailyUsage({ pricing = {} }) {
                             {/* Department - Multi-select Simulation via Dropdown */}
                             <div className="relative">
                                 <Layers size={16} className="absolute left-3 top-2.5 text-gray-400" />
-                                <select 
-                                    className="pl-9 pr-8 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none hover:border-indigo-300 transition-colors cursor-pointer appearance-none min-w-[160px]"
-                                    value={filters.departments.length > 0 ? 'selected' : 'all'}
+                                <select
+                                    value={filters.departments.length ? filters.departments[0] : 'all'}
                                     onChange={(e) => {
                                         const val = e.target.value;
-                                        setFilters({
-                                            ...filters, 
-                                            departments: val === 'all' ? [] : [val] // Simple toggle for now, can be expanded to full multi-select logic
-                                        });
+                                        setFilters({ ...filters, departments: val === 'all' ? [] : [val] });
                                     }}
                                 >
                                     <option value="all">All Departments</option>
@@ -1335,6 +1477,7 @@ export default function DailyUsage({ pricing = {} }) {
                                         <option key={d} value={d}>{d}</option>
                                     ))}
                                 </select>
+
                                 {filters.departments.length > 0 && (
                                     <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
                                         {filters.departments.length}
@@ -1345,22 +1488,22 @@ export default function DailyUsage({ pricing = {} }) {
                             {/* User Search */}
                             <div className="relative">
                                 <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     placeholder="Search user..."
                                     className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-w-[160px]"
                                     value={filters.user}
-                                    onChange={(e) => setFilters({...filters, user: e.target.value})}
+                                    onChange={(e) => setFilters({ ...filters, user: e.target.value })}
                                 />
                             </div>
 
                             {/* Model */}
                             <div className="relative">
                                 <Cpu size={16} className="absolute left-3 top-2.5 text-gray-400" />
-                                <select 
+                                <select
                                     className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none min-w-[160px]"
                                     value={filters.model}
-                                    onChange={(e) => setFilters({...filters, model: e.target.value})}
+                                    onChange={(e) => setFilters({ ...filters, model: e.target.value })}
                                 >
                                     <option value="all">All Models</option>
                                     {availableOptions.models.map(m => (
@@ -1372,11 +1515,11 @@ export default function DailyUsage({ pricing = {} }) {
                             {/* Min Cost Slider */}
                             <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-md">
                                 <span className="text-xs font-medium text-gray-500">Min $</span>
-                                <input 
+                                <input
                                     type="range" min="0" max="100" step="1"
                                     className="w-24 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                                     value={filters.minCost}
-                                    onChange={(e) => setFilters({...filters, minCost: parseFloat(e.target.value)})}
+                                    onChange={(e) => setFilters({ ...filters, minCost: parseFloat(e.target.value) })}
                                 />
                                 <span className="text-xs font-bold text-indigo-600 w-8">${filters.minCost}</span>
                             </div>
@@ -1399,6 +1542,42 @@ export default function DailyUsage({ pricing = {} }) {
                         </div>
                     </div>
 
+                    <div className="mb-4 flex flex-wrap gap-3 items-center">
+                        <label className="flex items-center gap-2 text-sm text-gray-600">
+                            <input
+                                type="checkbox"
+                                checked={forecastConfig.enabled}
+                                onChange={(e) => setForecastConfig((p) => ({ ...p, enabled: e.target.checked }))}
+                            />
+                            Show forecast
+                        </label>
+
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">Horizon</span>
+                            <input
+                                type="number"
+                                min="1"
+                                max="365"
+                                value={forecastConfig.horizon}
+                                onChange={(e) => setForecastConfig((p) => ({ ...p, horizon: Number(e.target.value) || 14 }))}
+                                className="w-20 px-2 py-1 border border-gray-200 rounded"
+                            />
+                        </div>
+
+                        <select
+                            value={forecastConfig.confidence}
+                            onChange={(e) => setForecastConfig((p) => ({ ...p, confidence: Number(e.target.value) }))}
+                            className="px-2 py-1 border border-gray-200 rounded text-sm"
+                        >
+                            <option value={0.95}>95% CI</option>
+                            <option value={0.99}>99% CI</option>
+                        </select>
+
+                        {forecastLoading && <span className="text-xs text-gray-400">Forecasting…</span>}
+                        {forecastError && <span className="text-xs text-red-600">{forecastError}</span>}
+                    </div>
+
+
                     {/* Main Charts Row */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Daily Trend */}
@@ -1408,19 +1587,30 @@ export default function DailyUsage({ pricing = {} }) {
                             </h3>
                             <div className="h-72">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <ComposedChart data={stats.dailyData}>
+                                    <ComposedChart data={trendData}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                         <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                                         <YAxis yAxisId="left" orientation="left" tickFormatter={(v) => `$${v}`} />
                                         <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `$${v}`} />
                                         <Tooltip
-                                            formatter={(value, name) => [
-                                                name === 'cumulativeCost' || name === 'cost' ? `$${value.toFixed(2)}` : value,
-                                                name === 'cumulativeCost' ? 'Cumulative' : 'Daily Cost'
-                                            ]}
+                                            formatter={(value, name) => {
+                                                if (value == null || Number.isNaN(Number(value))) return ["—", name];
+                                                const num = Number(value);
+                                                const label =
+                                                    name === "cumulativeCost" ? "Cumulative" :
+                                                        name === "actualCost" ? "Daily Cost" :
+                                                            name;
+                                                return [`$${num.toFixed(2)}`, label];
+                                            }}
                                         />
+
                                         <Legend />
-                                        <Bar yAxisId="left" dataKey="cost" name="Daily Cost" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                                        <Bar yAxisId="left" dataKey="actualCost" name="Daily Cost" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                                        <Line yAxisId="left" type="monotone" dataKey="modelCost" name="Forecast / Fit" strokeWidth={2} dot={false} />
+                                        <Line yAxisId="left" type="monotone" dataKey="ciUpper" name="CI Upper" strokeDasharray="4 4" dot={false} />
+                                        <Line yAxisId="left" type="monotone" dataKey="ciLower" name="CI Lower" strokeDasharray="4 4" dot={false} />
+
+                                        {/* Keep your cumulative line if you want historical-only */}
                                         <Line yAxisId="right" type="monotone" dataKey="cumulativeCost" name="Cumulative" stroke="#f59e0b" strokeWidth={2} dot={false} />
                                     </ComposedChart>
                                 </ResponsiveContainer>
@@ -1546,6 +1736,7 @@ export default function DailyUsage({ pricing = {} }) {
                             </table>
                         </div>
                     </div>
+                    <ForecastIntelligence dailyData={stats.dailyData} />
                 </>
             )}
         </div>
@@ -1742,6 +1933,504 @@ export default function DataGenerator({ pricing }) {
 
 
 ================================================================================
+📄 FILE: src/components/ForecastIntelligence.jsx
+================================================================================
+
+// src/components/ForecastIntelligence.jsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Download, Brain, AlertTriangle, Activity } from "lucide-react";
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  Line,
+  Bar,
+  Area,
+} from "recharts";
+
+import {
+  createForecastV2CacheKey,
+  getCachedForecastV2,
+  setCachedForecastV2,
+} from "../utils/forecastCacheV2";
+
+function formatMoney(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "—";
+  return `$${num.toFixed(2)}`;
+}
+
+function formatNumber(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "—";
+  return num.toLocaleString();
+}
+
+function downloadCsv(filename, rows) {
+  const csv = rows.map((r) => r.map(String).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}
+
+export default function ForecastIntelligence({ dailyData }) {
+  const workerRef = useRef(null);
+
+  const [config, setConfig] = useState({
+    enabled: true,
+    target: "cost", // "cost" | "executions"
+    horizon: 30,
+    confidence: 0.95,
+    anomalyZ: 3.0,
+    seasonality: "weekly", // "weekly" | "none"
+    model: "auto", // "auto" | "seasonal_naive" | "drift" | "arima"
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [result, setResult] = useState(null);
+
+  // Create worker (separate from your existing one)
+  useEffect(() => {
+    workerRef.current = new Worker(
+      new URL("../workers/forecastIntelligenceWorker.js", import.meta.url),
+      { type: "module" }
+    );
+
+    return () => {
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    };
+  }, []);
+
+  const series = useMemo(() => {
+    if (!Array.isArray(dailyData) || dailyData.length === 0) return null;
+
+    const dates = dailyData.map((d) => d.date);
+    const values =
+      config.target === "executions"
+        ? dailyData.map((d) => Number(d.uniqueExecutions) || 0)
+        : dailyData.map((d) => Number(d.cost) || 0);
+
+    return { dates, values };
+  }, [dailyData, config.target]);
+
+  const isCountTarget = config.target === "executions";
+
+  const chartData = useMemo(() => {
+    if (!result?.historyDates?.length) return [];
+
+    const historyPoints = result.historyDates.map((date, i) => ({
+      date,
+      actual: result.historyValues?.[i] ?? null,
+      forecast: null,
+      lower: null,
+      upper: null,
+    }));
+
+    const futurePoints = (result.forecastDates || []).map((date, i) => ({
+      date,
+      actual: null,
+      forecast: result.forecast?.[i] ?? null,
+      lower: result.ciLower?.[i] ?? null,
+      upper: result.ciUpper?.[i] ?? null,
+    }));
+
+    return [...historyPoints, ...futurePoints];
+  }, [result]);
+
+  const summary = useMemo(() => {
+    if (!result?.forecast?.length) return null;
+
+    const horizon = result.forecast.length;
+    const sum = result.forecast.reduce((a, b) => a + (Number(b) || 0), 0);
+
+    // For a simple sum interval, assume independent daily errors:
+    // sd(sum) ≈ sqrt(h) * sigma
+    const sigma = Number(result.sigma) || 0;
+    const z = config.confidence >= 0.99 ? 2.576 : 1.96;
+    const sdSum = Math.sqrt(horizon) * sigma;
+
+    const lowerSum = Math.max(0, sum - z * sdSum);
+    const upperSum = Math.max(0, sum + z * sdSum);
+
+    return { sum, lowerSum, upperSum, horizon };
+  }, [result, config.confidence]);
+
+  useEffect(() => {
+    const run = async () => {
+      if (!config.enabled) return;
+      if (!workerRef.current) return;
+      if (!series?.dates?.length) return;
+
+      setError(null);
+      setLoading(true);
+
+      const cacheKey = createForecastV2CacheKey({
+        dates: series.dates,
+        values: series.values,
+        horizon: config.horizon,
+        confidence: config.confidence,
+        anomalyZ: config.anomalyZ,
+        seasonality: config.seasonality,
+        model: config.model,
+      });
+
+      const cached = await getCachedForecastV2(cacheKey);
+      if (cached) {
+        setResult(cached);
+        setLoading(false);
+        return;
+      }
+
+      const requestId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+      const onMessage = async (event) => {
+        const payload = event.data;
+        if (!payload || payload.requestId !== requestId) return;
+
+        workerRef.current?.removeEventListener("message", onMessage);
+
+        if (payload.error) {
+          setError(payload.error);
+          setResult(null);
+          setLoading(false);
+          return;
+        }
+
+        setResult(payload);
+        setLoading(false);
+        await setCachedForecastV2(cacheKey, payload);
+      };
+
+      workerRef.current.addEventListener("message", onMessage);
+
+      workerRef.current.postMessage({
+        requestId,
+        dates: series.dates,
+        values: series.values,
+        horizon: config.horizon,
+        confidence: config.confidence,
+        anomalyZ: config.anomalyZ,
+        seasonality: config.seasonality,
+        model: config.model,
+      });
+    };
+
+    run();
+  }, [
+    config.enabled,
+    config.horizon,
+    config.confidence,
+    config.anomalyZ,
+    config.seasonality,
+    config.model,
+    series,
+  ]);
+
+  const exportForecastCsv = () => {
+    if (!result?.forecastDates?.length) return;
+
+    const rows = [
+      ["Date", "Forecast", "CI Lower", "CI Upper"],
+      ...result.forecastDates.map((d, i) => [
+        d,
+        (result.forecast?.[i] ?? "").toFixed?.(4) ?? result.forecast?.[i] ?? "",
+        (result.ciLower?.[i] ?? "").toFixed?.(4) ?? result.ciLower?.[i] ?? "",
+        (result.ciUpper?.[i] ?? "").toFixed?.(4) ?? result.ciUpper?.[i] ?? "",
+      ]),
+    ];
+
+    const fileSafeTarget = config.target === "executions" ? "executions" : "cost";
+    downloadCsv(
+      `forecast_intelligence_${fileSafeTarget}_${new Date().toISOString().slice(0, 10)}.csv`,
+      rows
+    );
+  };
+
+  if (!dailyData?.length) return null;
+
+  return (
+    <div className="glass-card p-6 rounded-lg mt-6 border-l-4 border-slate-900 animate-slide-in">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-slate-900 rounded-lg text-white">
+            <Brain size={18} />
+          </div>
+          <div>
+            <h3 className="font-extrabold text-gray-900">
+              Forecast Intelligence (Separate Module)
+            </h3>
+            <p className="text-xs text-gray-500">
+              Auto-selects the best model via backtesting (Seasonal Naive / Drift / ARIMA when available).
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={exportForecastCsv}
+            disabled={!result?.forecastDates?.length}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 hover:bg-white text-gray-700 text-sm font-bold disabled:opacity-50"
+            title="Export this forecast to CSV"
+          >
+            <Download size={16} /> Export Forecast
+          </button>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-6">
+        <label className="md:col-span-1 flex items-center gap-2 text-sm text-gray-600">
+          <input
+            type="checkbox"
+            checked={config.enabled}
+            onChange={(e) => setConfig((p) => ({ ...p, enabled: e.target.checked }))}
+          />
+          Enabled
+        </label>
+
+        <div className="md:col-span-1">
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Target</div>
+          <select
+            className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
+            value={config.target}
+            onChange={(e) => setConfig((p) => ({ ...p, target: e.target.value }))}
+          >
+            <option value="cost">Daily Cost</option>
+            <option value="executions">Daily Executions</option>
+          </select>
+        </div>
+
+        <div className="md:col-span-1">
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Model</div>
+          <select
+            className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
+            value={config.model}
+            onChange={(e) => setConfig((p) => ({ ...p, model: e.target.value }))}
+          >
+            <option value="auto">Auto (Best Backtest)</option>
+            <option value="seasonal_naive">Seasonal Naive</option>
+            <option value="drift">Drift</option>
+            <option value="arima">ARIMA</option>
+          </select>
+        </div>
+
+        <div className="md:col-span-1">
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Seasonality</div>
+          <select
+            className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
+            value={config.seasonality}
+            onChange={(e) => setConfig((p) => ({ ...p, seasonality: e.target.value }))}
+          >
+            <option value="weekly">Weekly</option>
+            <option value="none">None</option>
+          </select>
+        </div>
+
+        <div className="md:col-span-1">
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Horizon (days)</div>
+          <input
+            type="number"
+            min="1"
+            max="365"
+            value={config.horizon}
+            onChange={(e) => setConfig((p) => ({ ...p, horizon: Number(e.target.value) || 30 }))}
+            className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
+          />
+        </div>
+
+        <div className="md:col-span-1">
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Confidence</div>
+          <select
+            className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
+            value={config.confidence}
+            onChange={(e) => setConfig((p) => ({ ...p, confidence: Number(e.target.value) }))}
+          >
+            <option value={0.9}>90%</option>
+            <option value={0.95}>95%</option>
+            <option value={0.99}>99%</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Status row */}
+      <div className="flex flex-wrap items-center gap-3 mb-6 text-sm">
+        {loading && <span className="text-gray-500">Forecasting…</span>}
+        {error && (
+          <span className="text-red-600 flex items-center gap-2">
+            <AlertTriangle size={16} /> {error}
+          </span>
+        )}
+        {result?.selectedModel?.label && (
+          <span className="text-gray-700 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg">
+            <span className="font-bold">Selected:</span>{" "}
+            {result.selectedModel.label}
+            {result.selectedModel?.params &&
+              Object.keys(result.selectedModel.params).length > 0 && (
+                <span className="text-gray-500">
+                  {" "}
+                  ({Object.entries(result.selectedModel.params)
+                    .map(([k, v]) => `${k}=${v}`)
+                    .join(", ")})
+                </span>
+              )}
+          </span>
+        )}
+        {!!result?.notes?.length && (
+          <span className="text-gray-500">
+            {result.notes.join(" • ")}
+          </span>
+        )}
+      </div>
+
+      {/* Summary cards */}
+      {summary && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="text-xs font-bold text-gray-500 uppercase mb-1">
+              Next {summary.horizon} days (expected)
+            </div>
+            <div className="text-2xl font-extrabold text-gray-900">
+              {isCountTarget ? formatNumber(summary.sum) : formatMoney(summary.sum)}
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="text-xs font-bold text-gray-500 uppercase mb-1">
+              Lower bound (~{Math.round(config.confidence * 100)}%)
+            </div>
+            <div className="text-2xl font-extrabold text-gray-900">
+              {isCountTarget ? formatNumber(summary.lowerSum) : formatMoney(summary.lowerSum)}
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="text-xs font-bold text-gray-500 uppercase mb-1">
+              Upper bound (~{Math.round(config.confidence * 100)}%)
+            </div>
+            <div className="text-2xl font-extrabold text-gray-900">
+              {isCountTarget ? formatNumber(summary.upperSum) : formatMoney(summary.upperSum)}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Forecast chart */}
+      <div className="bg-white border border-gray-200 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-bold text-gray-800 flex items-center gap-2">
+            <Activity size={18} className="text-gray-400" /> Forecast (with prediction interval)
+          </div>
+          {result?.backtest?.metrics && (
+            <div className="text-xs text-gray-500">
+              Backtest ({result.backtest.window}d):{" "}
+              <span className="font-bold">
+                RMSE {isCountTarget ? formatNumber(result.backtest.metrics.rmse) : formatMoney(result.backtest.metrics.rmse)}
+              </span>{" "}
+              • SMAPE{" "}
+              <span className="font-bold">
+                {Number(result.backtest.metrics.smape)?.toFixed?.(1) ?? "—"}%
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+              <YAxis
+                tickFormatter={(v) => (isCountTarget ? formatNumber(v) : `$${v}`)}
+              />
+              <Tooltip
+                formatter={(value, name) => {
+                  if (value == null || Number.isNaN(Number(value))) return ["—", name];
+                  const num = Number(value);
+                  const label =
+                    name === "actual"
+                      ? "Actual"
+                      : name === "forecast"
+                      ? "Forecast"
+                      : name === "lower"
+                      ? "CI Lower"
+                      : "CI Upper";
+
+                  return [
+                    isCountTarget ? formatNumber(num) : formatMoney(num),
+                    label,
+                  ];
+                }}
+              />
+              <Legend />
+              <Bar dataKey="actual" name="Actual" radius={[4, 4, 0, 0]} />
+              <Area dataKey="upper" name="CI Upper" type="monotone" dot={false} />
+              <Area dataKey="lower" name="CI Lower" type="monotone" dot={false} />
+              <Line dataKey="forecast" name="Forecast" type="monotone" strokeWidth={2} dot={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Anomalies */}
+      {!!result?.anomalies?.length && (
+        <div className="mt-6 bg-white border border-gray-200 rounded-xl p-4">
+          <div className="font-bold text-gray-800 mb-3">
+            Anomalies (|z| ≥ {config.anomalyZ})
+          </div>
+          <div className="overflow-auto max-h-[260px]">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
+                <tr>
+                  <th className="px-3 py-2">Date</th>
+                  <th className="px-3 py-2 text-right">Actual</th>
+                  <th className="px-3 py-2 text-right">Expected</th>
+                  <th className="px-3 py-2 text-right">z</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {result.anomalies.slice(0, 50).map((a) => (
+                  <tr key={`${a.date}_${a.index}`} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 font-medium text-gray-900">{a.date}</td>
+                    <td className="px-3 py-2 text-right">
+                      {isCountTarget ? formatNumber(a.actual) : formatMoney(a.actual)}
+                    </td>
+                    <td className="px-3 py-2 text-right text-gray-600">
+                      {isCountTarget ? formatNumber(a.expected) : formatMoney(a.expected)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {Number(a.z).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="text-xs text-gray-500 mt-2">
+            Tip: anomalies often correspond to deployments, batch jobs, retries, or one-off high-volume days.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+================================================================================
 📄 FILE: src/components/Toast.jsx
 ================================================================================
 
@@ -1792,50 +2481,96 @@ export default function Toast({ message, type, onClose }) {
 ================================================================================
 
 import React from 'react';
+import { Database, HardDrive, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
 export default function PineconeSection({ data, setData, pricing, calculatedCost }) {
   const { plan, storageGB, readUnits, writeUnits } = data;
   const rates = pricing.pinecone;
-  const planMin = rates.plans[plan].min;
+  const planDetails = rates.plans && rates.plans[plan] ? rates.plans[plan] : { min: 0 };
   
   // Just for display logic
   const rawUsageCost = (storageGB * rates.storage) + (readUnits / 1e6 * rates.read) + (writeUnits / 1e6 * rates.write);
 
-  return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mt-6">
-      <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">3. Pinecone Memory (Vector DB)</h2>
+  // Styles matching Daily Analytics inputs
+  const inputClass = "w-full px-3 py-2 border border-gray-200 rounded-lg bg-white/50 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all pl-9";
+  const labelClass = "block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5";
+  const iconClass = "absolute left-3 top-2.5 text-gray-400";
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+  return (
+    <div className="glass-card p-6 rounded-xl mt-6 animate-slide-in" style={{ animationDelay: '0.2s' }}>
+      <div className="flex items-center gap-2 mb-6 border-b border-gray-100 pb-4">
+          <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+              <Database size={20} />
+          </div>
+          <h2 className="text-lg font-bold text-gray-800">3. Pinecone Memory (Vector DB)</h2>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div className="md:col-span-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Plan Tier</label>
-            <select className="w-full p-2 border rounded" value={plan} onChange={(e) => setData({...data, plan: e.target.value})}>
+            <label className={labelClass}>Plan Tier</label>
+            <select 
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white/50 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                value={plan} 
+                onChange={(e) => setData({...data, plan: e.target.value})}
+            >
                 {Object.entries(rates.plans).map(([key, val]) => (
                     <option key={key} value={key}>{val.label}</option>
                 ))}
             </select>
         </div>
+        
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Storage (GB)</label>
-            <input type="number" step="0.1" className="w-full p-2 border rounded" value={storageGB} onChange={(e) => setData({...data, storageGB: parseFloat(e.target.value) || 0})}/>
+            <label className={labelClass}>Storage (GB)</label>
+            <div className="relative">
+                <HardDrive size={16} className={iconClass} />
+                <input 
+                    type="number" step="0.1" min="0"
+                    className={inputClass} 
+                    value={storageGB} 
+                    onChange={(e) => setData({...data, storageGB: parseFloat(e.target.value) || 0})}
+                />
+            </div>
         </div>
+
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Read Units (RUs)</label>
-            <input type="number" className="w-full p-2 border rounded" value={readUnits} onChange={(e) => setData({...data, readUnits: parseFloat(e.target.value) || 0})}/>
+            <label className={labelClass}>Read Units</label>
+            <div className="relative">
+                <ArrowUpCircle size={16} className={iconClass} />
+                <input 
+                    type="number" min="0"
+                    className={inputClass} 
+                    value={readUnits} 
+                    onChange={(e) => setData({...data, readUnits: parseFloat(e.target.value) || 0})}
+                />
+            </div>
         </div>
+
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Write Units (WUs)</label>
-            <input type="number" className="w-full p-2 border rounded" value={writeUnits} onChange={(e) => setData({...data, writeUnits: parseFloat(e.target.value) || 0})}/>
+            <label className={labelClass}>Write Units</label>
+            <div className="relative">
+                <ArrowDownCircle size={16} className={iconClass} />
+                <input 
+                    type="number" min="0"
+                    className={inputClass} 
+                    value={writeUnits} 
+                    onChange={(e) => setData({...data, writeUnits: parseFloat(e.target.value) || 0})}
+                />
+            </div>
         </div>
       </div>
 
-      <div className="bg-gray-50 p-4 rounded-md flex justify-between items-center">
-        <div className="text-sm text-gray-500">
-            Raw Usage: ${rawUsageCost.toFixed(4)} <br/>
-            Minimum Floor: ${planMin.toFixed(2)}
+      <div className="bg-gray-50/50 border border-gray-100 p-4 rounded-xl flex justify-between items-center">
+        <div>
+           <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Billing Details</div>
+           <div className="text-sm text-gray-600">
+              Raw Usage: <span className="font-mono">${rawUsageCost.toFixed(4)}</span>
+              <span className="mx-2 text-gray-300">|</span>
+              Plan Floor: <span className="font-mono">${planDetails.min.toFixed(2)}</span>
+           </div>
         </div>
         <div className="text-right">
-          <div className="text-sm text-gray-500">Total Database Cost</div>
-          <div className="text-2xl font-bold text-indigo-600">${calculatedCost.toFixed(2)}</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Database Cost</div>
+          <div className="text-2xl font-extrabold text-gray-900">${calculatedCost.toFixed(2)}</div>
         </div>
       </div>
     </div>
@@ -2097,6 +2832,110 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
 
 
 ================================================================================
+📄 FILE: src/utils/forecastCacheV2.js
+================================================================================
+
+// src/utils/forecastCacheV2.js
+import { get, set } from "idb-keyval";
+
+/**
+ * Separate cache namespace from your existing forecastCache.js
+ * so nothing collides.
+ */
+export function createForecastV2CacheKey({
+  dates,
+  values,
+  horizon,
+  confidence,
+  anomalyZ,
+  seasonality,
+  model,
+}) {
+  const head = dates?.[0] || "";
+  const tail = dates?.[dates.length - 1] || "";
+  const n = values?.length || 0;
+
+  let hash = 2166136261;
+  const stride = Math.max(1, Math.floor(n / 25));
+  for (let i = 0; i < n; i += stride) {
+    const v = Math.round((Number(values[i]) || 0) * 100);
+    hash ^= v;
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return [
+    "forecast:v2",
+    head,
+    tail,
+    `n=${n}`,
+    `h=${horizon}`,
+    `c=${confidence}`,
+    `z=${anomalyZ}`,
+    `s=${seasonality}`,
+    `m=${model}`,
+    `hash=${hash >>> 0}`,
+  ].join("|");
+}
+
+export async function getCachedForecastV2(cacheKey) {
+  return get(cacheKey);
+}
+
+export async function setCachedForecastV2(cacheKey, payload) {
+  return set(cacheKey, payload);
+}
+
+
+
+================================================================================
+📄 FILE: src/utils/forecastCache.js
+================================================================================
+
+// src/utils/forecastCache.js
+import { get, set } from "idb-keyval";
+
+/**
+ * Small, stable hash for caching.
+ * (We’re hashing daily aggregates, not million-row raw data.)
+ */
+export function createSeriesCacheKey({ dates, values, horizon, confidence, anomalyZ }) {
+  const head = dates?.[0] || "";
+  const tail = dates?.[dates.length - 1] || "";
+  const n = values?.length || 0;
+
+  // Lightweight rolling hash over a few points
+  let hash = 2166136261; // FNV-ish
+  const stride = Math.max(1, Math.floor(n / 25)); // sample up to ~25 points
+  for (let i = 0; i < n; i += stride) {
+    const v = Math.round((Number(values[i]) || 0) * 100); // cents-ish
+    hash ^= v;
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return [
+    "forecast:v1",
+    head,
+    tail,
+    `n=${n}`,
+    `h=${horizon}`,
+    `c=${confidence}`,
+    `z=${anomalyZ}`,
+    `hash=${hash >>> 0}`,
+  ].join("|");
+}
+
+export async function getCachedForecast(cacheKey) {
+  return get(cacheKey);
+}
+
+export async function setCachedForecast(cacheKey, payload) {
+  // Keep payload small (no giant arrays beyond daily + horizon)
+  return set(cacheKey, payload);
+}
+
+
+
+================================================================================
 📄 FILE: src/utils/costUtils.js
 ================================================================================
 
@@ -2108,37 +2947,44 @@ export const getDaysInCurrentMonth = () => {
 };
 
 export const calculateN8nCost = (data, pricing) => {
+    if (!data || !pricing || !pricing.n8n) return 0;
+    
     const { plan, duration } = data;
     const currentPlan = pricing.n8n[plan];
 
     if (!currentPlan) return 0;
 
-    let monthlyCost = currentPlan.price;
+    let monthlyCost = Number(currentPlan.price) || 0;
 
     // Apply discount if yearly, but return monthly equivalent
     if (duration === 'yearly') {
-        const discount = currentPlan.yearlyDiscountPercent || 0;
+        const discount = Number(currentPlan.yearlyDiscountPercent) || 0;
         monthlyCost = monthlyCost * (1 - discount);
     }
 
-    return monthlyCost;
+    return Math.max(0, monthlyCost);
 };
 
 export const calculateOpenAICost = (nodes, pricing) => {
+    if (!nodes || !pricing || !pricing.openai) return 0;
+
     // Dynamically get days for *this specific month*
     const daysInMonth = getDaysInCurrentMonth(); 
 
     return nodes.reduce((acc, node) => {
         const modelPrice = pricing.openai[node.model];
+        // Graceful fallback if model doesn't exist in pricing (avoid NaN)
         if (!modelPrice) return acc;
 
-        // Default cache rate to 0% if not set
-        const cacheRate = (node.cacheHitRate || 0) / 100;
-        const totalInput = node.inputTokens || 0;
+        // Sanitize inputs (prevent negative numbers)
+        const cacheRate = Math.min(100, Math.max(0, (Number(node.cacheHitRate) || 0))) / 100;
+        const totalInput = Math.max(0, Number(node.inputTokens) || 0);
+        const outputTokens = Math.max(0, Number(node.outputTokens) || 0);
+        const dailyExecutions = Math.max(0, Number(node.executionsPerDay) || 0);
 
         // 1. Calculate weighted Input Cost (Fresh vs Cached)
-        const freshPrice = modelPrice.input;
-        const cachedPrice = modelPrice.cached !== undefined ? modelPrice.cached : modelPrice.input;
+        const freshPrice = Number(modelPrice.input) || 0;
+        const cachedPrice = modelPrice.cached !== undefined ? Number(modelPrice.cached) : freshPrice;
 
         const freshTokens = totalInput * (1 - cacheRate);
         const cachedTokens = totalInput * cacheRate;
@@ -2147,13 +2993,11 @@ export const calculateOpenAICost = (nodes, pricing) => {
         const inputCost = (freshTokens / 1000000 * freshPrice) + (cachedTokens / 1000000 * cachedPrice);
 
         // 2. Output Cost per 1M tokens
-        const outputCost = (node.outputTokens / 1000000) * modelPrice.output;
+        const outputCost = (outputTokens / 1000000) * (Number(modelPrice.output) || 0);
 
         const costPerExecution = inputCost + outputCost;
 
         // 3. Scale by Daily Volume -> Monthly
-        const dailyExecutions = parseFloat(node.executionsPerDay) || 0;
-        
         // Uses actual calendar days instead of a flat 30
         const monthlyCost = costPerExecution * dailyExecutions * daysInMonth;
 
@@ -2162,20 +3006,665 @@ export const calculateOpenAICost = (nodes, pricing) => {
 };
 
 export const calculatePineconeCost = (data, pricing) => {
+    if (!data || !pricing || !pricing.pinecone) return 0;
+
     const { plan, storageGB, readUnits, writeUnits } = data;
     const rates = pricing.pinecone;
-    const planDetails = rates.plans[plan];
+    const planDetails = rates.plans && rates.plans[plan];
 
     if (!planDetails) return 0;
 
-    const storageCost = storageGB * rates.storage;
-    const readCost = (readUnits / 1000000) * rates.read;
-    const writeCost = (writeUnits / 1000000) * rates.write;
+    // Sanitize inputs
+    const storage = Math.max(0, Number(storageGB) || 0);
+    const read = Math.max(0, Number(readUnits) || 0);
+    const write = Math.max(0, Number(writeUnits) || 0);
+
+    const storageCost = storage * (Number(rates.storage) || 0);
+    const readCost = (read / 1000000) * (Number(rates.read) || 0);
+    const writeCost = (write / 1000000) * (Number(rates.write) || 0);
+    
     const rawUsageCost = storageCost + readCost + writeCost;
 
     // Serverless usually charges the greater of Usage vs Minimum
-    return Math.max(rawUsageCost, planDetails.min);
+    const minCost = Number(planDetails.min) || 0;
+    
+    return Math.max(rawUsageCost, minCost);
 };
+
+
+================================================================================
+📄 FILE: src/workers/forecastIntelligenceWorker.js
+================================================================================
+
+// src/workers/forecastIntelligenceWorker.js
+import * as ss from "simple-statistics";
+
+/**
+ * Advanced forecasting worker (separate from your existing forecastWorker.js)
+ *
+ * Inputs:
+ * {
+ *   requestId: string,
+ *   dates: string[],           // "YYYY-MM-DD" (sorted or unsorted)
+ *   values: number[],          // metric values per day
+ *   horizon: number,           // forecast days
+ *   confidence: number,        // e.g. 0.95
+ *   anomalyZ: number,          // e.g. 3.0
+ *   seasonality: "weekly" | "none",
+ *   model: "auto" | "seasonal_naive" | "drift" | "arima"
+ * }
+ *
+ * Outputs:
+ * {
+ *   requestId,
+ *   historyDates: string[],
+ *   historyValues: number[],
+ *   selectedModel: { id, label, params },
+ *   forecastDates: string[],
+ *   forecast: number[],
+ *   ciLower: number[],
+ *   ciUpper: number[],
+ *   sigma: number,
+ *   backtest: { window: number, dates: string[], actual: number[], predicted: number[], metrics: {...} },
+ *   anomalies: Array<{ index:number, date:string, actual:number, expected:number, z:number }>,
+ *   notes: string[]
+ * }
+ */
+
+function formatYYYYMMDD(dateObj) {
+  return dateObj.toISOString().slice(0, 10);
+}
+
+function addDaysUTC(dateStrYYYYMMDD, daysToAdd) {
+  const d = new Date(dateStrYYYYMMDD);
+  d.setUTCDate(d.getUTCDate() + daysToAdd);
+  return d;
+}
+
+function clampNonNegative(value) {
+  return Math.max(0, Number(value) || 0);
+}
+
+function safeFiniteNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function sortPairsByDate(dates, values) {
+  const pairs = dates.map((d, i) => ({ d, v: safeFiniteNumber(values[i]) }));
+  pairs.sort((a, b) => new Date(a.d) - new Date(b.d));
+  return {
+    dates: pairs.map((p) => p.d),
+    values: pairs.map((p) => p.v),
+  };
+}
+
+/**
+ * Build a continuous daily series between min and max dates.
+ * Missing days are filled with 0 (appropriate for "no usage -> no cost" style metrics).
+ */
+function buildContinuousDailySeries(inputDates, inputValues) {
+  const { dates, values } = sortPairsByDate(inputDates, inputValues);
+
+  const dateToValueMap = new Map();
+  for (let i = 0; i < dates.length; i++) {
+    dateToValueMap.set(dates[i], safeFiniteNumber(values[i]));
+  }
+
+  const start = dates[0];
+  const end = dates[dates.length - 1];
+
+  const continuousDates = [];
+  const continuousValues = [];
+
+  let cursor = new Date(start);
+  const endDate = new Date(end);
+
+  // Move day by day (UTC-safe if input is YYYY-MM-DD)
+  while (cursor <= endDate) {
+    const key = formatYYYYMMDD(cursor);
+    continuousDates.push(key);
+    continuousValues.push(safeFiniteNumber(dateToValueMap.get(key) ?? 0));
+    cursor = addDaysUTC(key, 1);
+  }
+
+  return { continuousDates, continuousValues };
+}
+
+function dayOfWeekIndexUTC(dateStrYYYYMMDD) {
+  const d = new Date(dateStrYYYYMMDD);
+  return d.getUTCDay(); // 0..6
+}
+
+/**
+ * Weekly seasonal adjustment: estimate average effect per day-of-week, remove it for modeling,
+ * add it back for final forecasts.
+ */
+function computeWeeklySeasonality(dates, values) {
+  const sums = new Array(7).fill(0);
+  const counts = new Array(7).fill(0);
+
+  for (let i = 0; i < dates.length; i++) {
+    const dow = dayOfWeekIndexUTC(dates[i]);
+    sums[dow] += safeFiniteNumber(values[i]);
+    counts[dow] += 1;
+  }
+
+  const overallMean = ss.mean(values.map(safeFiniteNumber));
+  const seasonalEffect = new Array(7).fill(0);
+
+  for (let d = 0; d < 7; d++) {
+    const avg = counts[d] > 0 ? sums[d] / counts[d] : overallMean;
+    seasonalEffect[d] = avg - overallMean;
+  }
+
+  return { seasonalEffect, overallMean };
+}
+
+function applyWeeklyDeseasonalize(dates, values, seasonalEffect) {
+  const deseasonalized = values.map((v, i) => {
+    const dow = dayOfWeekIndexUTC(dates[i]);
+    return safeFiniteNumber(v) - seasonalEffect[dow];
+  });
+  return deseasonalized;
+}
+
+function addWeeklyReseasonalize(dates, values, seasonalEffect) {
+  const reseasonalized = values.map((v, i) => {
+    const dow = dayOfWeekIndexUTC(dates[i]);
+    return safeFiniteNumber(v) + seasonalEffect[dow];
+  });
+  return reseasonalized;
+}
+
+/** Metrics that behave better than MAPE when there are zeros. */
+function computeErrorMetrics(actual, predicted) {
+  const n = Math.min(actual.length, predicted.length);
+  if (n === 0) {
+    return { mae: null, rmse: null, smape: null };
+  }
+
+  let absSum = 0;
+  let sqSum = 0;
+  let smapeSum = 0;
+
+  for (let i = 0; i < n; i++) {
+    const a = safeFiniteNumber(actual[i]);
+    const p = safeFiniteNumber(predicted[i]);
+    const err = a - p;
+
+    absSum += Math.abs(err);
+    sqSum += err * err;
+
+    const denom = Math.abs(a) + Math.abs(p);
+    smapeSum += denom === 0 ? 0 : (2 * Math.abs(err)) / denom;
+  }
+
+  return {
+    mae: absSum / n,
+    rmse: Math.sqrt(sqSum / n),
+    smape: (smapeSum / n) * 100, // percentage
+  };
+}
+
+function seasonalNaiveForecast(historyValues, horizon, seasonLength = 7) {
+  const y = historyValues.map(safeFiniteNumber);
+  const n = y.length;
+
+  const forecast = new Array(horizon).fill(0).map((_, k) => {
+    if (n >= seasonLength) {
+      const idx = n - seasonLength + (k % seasonLength);
+      return y[idx];
+    }
+    return y[n - 1] ?? 0;
+  });
+
+  return forecast.map(clampNonNegative);
+}
+
+function driftForecast(historyValues, horizon) {
+  const y = historyValues.map(safeFiniteNumber);
+  const n = y.length;
+
+  const first = y[0] ?? 0;
+  const last = y[n - 1] ?? 0;
+
+  const slope = n >= 2 ? (last - first) / (n - 1) : 0;
+
+  const forecast = new Array(horizon).fill(0).map((_, k) => last + slope * (k + 1));
+  return forecast.map(clampNonNegative);
+}
+
+/**
+ * Try ARIMA with a small grid and pick best by validation RMSE.
+ * Uses dynamic import to avoid hard failing builds if arima is problematic.
+ */
+async function arimaAutoForecast(trainSeries, validationSeries, horizon, maxP = 3, maxD = 2, maxQ = 3) {
+  const arimaModule = await import("arima");
+  const ARIMAConstructor =
+    arimaModule?.default ?? arimaModule?.ARIMA ?? arimaModule;
+
+  if (!ARIMAConstructor) {
+    throw new Error("ARIMA import succeeded but constructor was not found");
+  }
+
+  const train = trainSeries.map(safeFiniteNumber);
+  const valid = validationSeries.map(safeFiniteNumber);
+  const k = valid.length;
+
+  let best = null;
+
+  for (let p = 0; p <= maxP; p++) {
+    for (let d = 0; d <= maxD; d++) {
+      for (let q = 0; q <= maxQ; q++) {
+        try {
+          const modelInstance = new ARIMAConstructor({ p, d, q, verbose: false }).train(train);
+          const predictedValidation = modelInstance.predict(k)?.[0] ?? modelInstance.predict(k);
+          const validationPred = Array.isArray(predictedValidation) ? predictedValidation : [];
+
+          if (validationPred.length !== k) continue;
+
+          const clippedValidationPred = validationPred.map(clampNonNegative);
+          const metrics = computeErrorMetrics(valid, clippedValidationPred);
+
+          // Prefer lowest RMSE, fallback to MAE
+          const score = (metrics.rmse ?? Number.POSITIVE_INFINITY) * 1e6 + (metrics.mae ?? Number.POSITIVE_INFINITY);
+
+          if (!best || score < best.score) {
+            best = {
+              p, d, q,
+              score,
+              metrics,
+              validationPred: clippedValidationPred,
+              modelInstance,
+            };
+          }
+        } catch {
+          // ignore unstable combos
+        }
+      }
+    }
+  }
+
+  if (!best) {
+    throw new Error("ARIMA grid search failed (no viable model found)");
+  }
+
+  const predictedFuture = best.modelInstance.predict(horizon)?.[0] ?? best.modelInstance.predict(horizon);
+  const futurePred = (Array.isArray(predictedFuture) ? predictedFuture : []).map(clampNonNegative);
+
+  return {
+    params: { p: best.p, d: best.d, q: best.q },
+    validationPred: best.validationPred,
+    futurePred,
+    metrics: best.metrics,
+  };
+}
+
+/**
+ * Robust anomaly detection vs weekly seasonal-naive expectation
+ * using MAD-based scale (stable for heavy-tailed noise).
+ */
+function detectAnomalies(dates, values, anomalyZ) {
+  const y = values.map(safeFiniteNumber);
+  const n = y.length;
+
+  const expected = y.map((_, i) => {
+    if (i >= 7) return y[i - 7];
+    return ss.mean(y.slice(0, Math.min(n, 7)));
+  });
+
+  const residuals = y.map((v, i) => v - expected[i]);
+  const mad = ss.medianAbsoluteDeviation(residuals.map(Math.abs));
+  const robustSigma = Math.max(1e-9, 1.4826 * mad);
+
+  const anomalies = [];
+  for (let i = 0; i < n; i++) {
+    const z = residuals[i] / robustSigma;
+    if (Math.abs(z) >= anomalyZ) {
+      anomalies.push({
+        index: i,
+        date: dates[i],
+        actual: y[i],
+        expected: expected[i],
+        z,
+      });
+    }
+  }
+
+  return { anomalies, robustSigma };
+}
+
+function zValueForConfidence(confidence) {
+  // Good enough normal approximation for UI intervals
+  if (confidence >= 0.995) return 2.807;
+  if (confidence >= 0.99) return 2.576;
+  if (confidence >= 0.975) return 2.241;
+  if (confidence >= 0.95) return 1.96;
+  if (confidence >= 0.9) return 1.645;
+  return 1.28; // ~80%
+}
+
+self.onmessage = async (event) => {
+  const {
+    requestId,
+    dates = [],
+    values = [],
+    horizon = 14,
+    confidence = 0.95,
+    anomalyZ = 3.0,
+    seasonality = "weekly",
+    model = "auto",
+  } = event.data || {};
+
+  try {
+    if (!requestId) throw new Error("Missing requestId");
+    if (!Array.isArray(dates) || !Array.isArray(values)) throw new Error("Invalid dates/values");
+    if (dates.length !== values.length) throw new Error("dates/values mismatch");
+    if (dates.length < 8) throw new Error("Not enough history (need at least 8 days)");
+
+    const sanitizedHorizon = Math.max(1, Math.min(365, Number(horizon) || 14));
+    const selectedConfidence = Number(confidence) || 0.95;
+    const z = zValueForConfidence(selectedConfidence);
+
+    // 1) Continuous daily series
+    const { continuousDates, continuousValues } = buildContinuousDailySeries(dates, values);
+
+    // 2) Seasonality handling
+    let seasonalEffect = new Array(7).fill(0);
+    const notes = [];
+
+    let modelInputValues = continuousValues.map(safeFiniteNumber);
+    if (seasonality === "weekly") {
+      const seasonal = computeWeeklySeasonality(continuousDates, continuousValues);
+      seasonalEffect = seasonal.seasonalEffect;
+      modelInputValues = applyWeeklyDeseasonalize(continuousDates, continuousValues, seasonalEffect);
+      notes.push("Weekly seasonality: ON (day-of-week adjustment)");
+    } else {
+      notes.push("Weekly seasonality: OFF");
+    }
+
+    // 3) Backtest window selection
+    const n = modelInputValues.length;
+    const preferredWindow = Math.min(28, Math.max(7, Math.floor(n * 0.2)));
+    const backtestWindow = Math.min(preferredWindow, n - 2); // keep at least 2 points in train
+    const trainSize = n - backtestWindow;
+
+    const train = modelInputValues.slice(0, trainSize);
+    const validation = modelInputValues.slice(trainSize);
+
+    // Utility to reseasonalize predictions if needed
+    const reseasonalizeFuture = (startDate, forecastValues) => {
+      if (seasonality !== "weekly") return forecastValues.map(clampNonNegative);
+
+      const futureDates = Array.from({ length: forecastValues.length }, (_, k) =>
+        formatYYYYMMDD(addDaysUTC(startDate, k + 1))
+      );
+
+      const reseasonalized = addWeeklyReseasonalize(futureDates, forecastValues, seasonalEffect);
+      return reseasonalized.map(clampNonNegative);
+    };
+
+    const reseasonalizeValidation = (validationDates, predValues) => {
+      if (seasonality !== "weekly") return predValues.map(clampNonNegative);
+      const reseasonalized = addWeeklyReseasonalize(validationDates, predValues, seasonalEffect);
+      return reseasonalized.map(clampNonNegative);
+    };
+
+    // 4) Candidate models
+    const candidateResults = [];
+
+    // Seasonal naive (on the *original* scale, but apply on deseasonalized for fairness)
+    {
+      const valPredDeseasonal = seasonalNaiveForecast(train, backtestWindow, 7);
+      const valPred = reseasonalizeValidation(continuousDates.slice(trainSize), valPredDeseasonal);
+      const actualVal = continuousValues.slice(trainSize).map(safeFiniteNumber);
+      const metrics = computeErrorMetrics(actualVal, valPred);
+
+      candidateResults.push({
+        id: "seasonal_naive",
+        label: "Seasonal Naive (Weekly)",
+        params: { seasonLength: 7 },
+        validationPred: valPred,
+        metrics,
+        score: (metrics.rmse ?? 1e18) * 1e6 + (metrics.mae ?? 1e18),
+        forecastFuture: null,
+        forecastFutureDeseasonal: seasonalNaiveForecast(modelInputValues, sanitizedHorizon, 7),
+      });
+    }
+
+    // Drift
+    {
+      const valPredDeseasonal = driftForecast(train, backtestWindow);
+      const valPred = reseasonalizeValidation(continuousDates.slice(trainSize), valPredDeseasonal);
+      const actualVal = continuousValues.slice(trainSize).map(safeFiniteNumber);
+      const metrics = computeErrorMetrics(actualVal, valPred);
+
+      candidateResults.push({
+        id: "drift",
+        label: "Drift (Trend)",
+        params: {},
+        validationPred: valPred,
+        metrics,
+        score: (metrics.rmse ?? 1e18) * 1e6 + (metrics.mae ?? 1e18),
+        forecastFuture: null,
+        forecastFutureDeseasonal: driftForecast(modelInputValues, sanitizedHorizon),
+      });
+    }
+
+    // ARIMA (optional / best when it works)
+    let arimaFailureReason = null;
+    if (model === "auto" || model === "arima") {
+      try {
+        const arimaResult = await arimaAutoForecast(train, validation, sanitizedHorizon, 3, 2, 3);
+
+        const valPred = reseasonalizeValidation(
+          continuousDates.slice(trainSize),
+          arimaResult.validationPred
+        );
+
+        const actualVal = continuousValues.slice(trainSize).map(safeFiniteNumber);
+        const metrics = computeErrorMetrics(actualVal, valPred);
+
+        candidateResults.push({
+          id: "arima",
+          label: "ARIMA (Auto Grid Search)",
+          params: arimaResult.params,
+          validationPred: valPred,
+          metrics,
+          score: (metrics.rmse ?? 1e18) * 1e6 + (metrics.mae ?? 1e18),
+          forecastFuture: null,
+          forecastFutureDeseasonal: arimaResult.futurePred,
+        });
+      } catch (err) {
+        arimaFailureReason = err?.message || String(err);
+      }
+    }
+
+    // 5) Pick best
+    let chosen = null;
+    if (model !== "auto") {
+      chosen = candidateResults.find((c) => c.id === model) ?? candidateResults[0];
+    } else {
+      chosen = candidateResults.reduce((best, cur) => (!best || cur.score < best.score ? cur : best), null);
+    }
+
+    if (!chosen) throw new Error("No forecasting candidates available");
+
+    if (arimaFailureReason) {
+      notes.push(`ARIMA note: ${arimaFailureReason}`);
+    }
+
+    // 6) Final future forecast on original scale (reseasonalize if needed)
+    const lastHistoryDate = continuousDates[continuousDates.length - 1];
+    const futureForecast = reseasonalizeFuture(lastHistoryDate, chosen.forecastFutureDeseasonal);
+
+    // 7) Interval estimation from backtest residuals
+    const actualBacktest = continuousValues.slice(trainSize).map(safeFiniteNumber);
+    const predBacktest = chosen.validationPred.map(safeFiniteNumber);
+    const backtestResiduals = actualBacktest.map((a, i) => a - (predBacktest[i] ?? 0));
+    const sigma = Math.max(1e-9, ss.sampleStandardDeviation(backtestResiduals));
+
+    const ciLower = futureForecast.map((y) => clampNonNegative(y - z * sigma));
+    const ciUpper = futureForecast.map((y) => clampNonNegative(y + z * sigma));
+
+    const forecastDates = Array.from({ length: sanitizedHorizon }, (_, k) =>
+      formatYYYYMMDD(addDaysUTC(lastHistoryDate, k + 1))
+    );
+
+    // 8) Anomalies (robust, weekly-expectation based)
+    const { anomalies } = detectAnomalies(continuousDates, continuousValues, Number(anomalyZ) || 3.0);
+
+    self.postMessage({
+      requestId,
+      historyDates: continuousDates,
+      historyValues: continuousValues.map(clampNonNegative),
+      selectedModel: { id: chosen.id, label: chosen.label, params: chosen.params },
+      forecastDates,
+      forecast: futureForecast,
+      ciLower,
+      ciUpper,
+      sigma,
+      backtest: {
+        window: backtestWindow,
+        dates: continuousDates.slice(trainSize),
+        actual: actualBacktest.map(clampNonNegative),
+        predicted: predBacktest.map(clampNonNegative),
+        metrics: chosen.metrics,
+      },
+      anomalies,
+      notes,
+    });
+  } catch (err) {
+    self.postMessage({
+      requestId,
+      error: err?.message || String(err),
+    });
+  }
+};
+
+
+
+================================================================================
+📄 FILE: src/workers/forecastWorker.js
+================================================================================
+
+// src/workers/forecastWorker.js
+import * as ss from "simple-statistics";
+
+/**
+ * Message in:
+ * {
+ *   requestId: string,
+ *   dates: string[],        // "YYYY-MM-DD"
+ *   values: number[],       // daily costs
+ *   horizon: number,        // how many days to forecast
+ *   confidence: 0.95 | 0.99 // CI level
+ *   anomalyZ: number        // e.g. 3.0
+ * }
+ *
+ * Message out:
+ * {
+ *   requestId,
+ *   fitted: number[],       // same length as values
+ *   forecast: number[],     // length = horizon
+ *   ciLower: number[],      // length = horizon
+ *   ciUpper: number[],      // length = horizon
+ *   sigma: number,
+ *   anomalies: Array<{ index:number, date:string, actual:number, expected:number, z:number }>
+ *   forecastDates: string[] // length = horizon
+ * }
+ */
+
+function formatDateYYYYMMDD(dateObj) {
+  // Keep it stable (UTC-ish) for chart labels.
+  return dateObj.toISOString().slice(0, 10);
+}
+
+function addDays(dateStrYYYYMMDD, daysToAdd) {
+  // "YYYY-MM-DD" parses as midnight UTC in modern JS engines.
+  const d = new Date(dateStrYYYYMMDD);
+  d.setUTCDate(d.getUTCDate() + daysToAdd);
+  return d;
+}
+
+self.onmessage = (event) => {
+  const {
+    requestId,
+    dates = [],
+    values = [],
+    horizon = 14,
+    confidence = 0.95,
+    anomalyZ = 3.0,
+  } = event.data || {};
+
+  try {
+    if (!requestId) throw new Error("Missing requestId");
+    if (!Array.isArray(values) || values.length < 3) throw new Error("Not enough data points");
+    if (!Array.isArray(dates) || dates.length !== values.length) throw new Error("dates/values mismatch");
+
+    const sanitizedHorizon = Math.max(1, Math.min(365, Number(horizon) || 14));
+    const zValue = confidence === 0.99 ? 2.576 : 1.96; // normal approximation
+
+    // --- Linear regression baseline ---
+    // Use x = 0..n-1 (stable + avoids timestamp scaling issues).
+    const regressionPoints = values.map((y, i) => [i, Number(y) || 0]);
+    const lr = ss.linearRegression(regressionPoints);
+    const predictLine = ss.linearRegressionLine(lr);
+
+    const fitted = values.map((_, i) => predictLine(i));
+
+    // Residuals -> sigma
+    const residuals = values.map((y, i) => (Number(y) || 0) - fitted[i]);
+    const sigma = Math.max(1e-9, ss.sampleStandardDeviation(residuals));
+
+    // Anomalies on history (z-score)
+    const anomalies = [];
+    for (let i = 0; i < values.length; i++) {
+      const z = residuals[i] / sigma;
+      if (Math.abs(z) >= anomalyZ) {
+        anomalies.push({
+          index: i,
+          date: dates[i],
+          actual: Number(values[i]) || 0,
+          expected: fitted[i],
+          z,
+        });
+      }
+    }
+
+    // Forecast future points
+    const startIndex = values.length;
+    const forecast = Array.from({ length: sanitizedHorizon }, (_, k) => predictLine(startIndex + k));
+
+    // CI bands (same sigma everywhere for this simple baseline)
+    const ciLower = forecast.map((y) => y - zValue * sigma);
+    const ciUpper = forecast.map((y) => y + zValue * sigma);
+
+    // Forecast date labels
+    const lastDate = dates[dates.length - 1];
+    const forecastDates = Array.from({ length: sanitizedHorizon }, (_, k) =>
+      formatDateYYYYMMDD(addDays(lastDate, k + 1))
+    );
+
+    self.postMessage({
+      requestId,
+      fitted,
+      forecast,
+      ciLower,
+      ciUpper,
+      sigma,
+      anomalies,
+      forecastDates,
+    });
+  } catch (err) {
+    self.postMessage({
+      requestId,
+      error: err?.message || String(err),
+    });
+  }
+};
+
 
 
 ================================================================================

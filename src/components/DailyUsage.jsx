@@ -1,4 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { createSeriesCacheKey, getCachedForecast, setCachedForecast } from "../utils/forecastCache";
+import ForecastIntelligence from "./ForecastIntelligence";
+
 import {
     UploadCloud, FileSpreadsheet, X,
     TrendingUp, Layers, Users, Server,
@@ -21,7 +24,7 @@ export default function DailyUsage({ pricing = {} }) {
     // Filter & Data States
     const rawDataRef = useRef([]); // Stores optimized raw rows
     const [stats, setStats] = useState(null);
-    
+
     // Available options for filters (populated on load)
     const [availableOptions, setAvailableOptions] = useState({
         departments: [],
@@ -44,6 +47,131 @@ export default function DailyUsage({ pricing = {} }) {
         user: { key: 'cost', direction: 'desc' },
         node: { key: 'cost', direction: 'desc' }
     });
+
+
+    const forecastWorkerRef = useRef(null);
+
+    const [forecastConfig, setForecastConfig] = useState({
+        enabled: true,
+        horizon: 14,
+        confidence: 0.95,
+        anomalyZ: 3.0,
+    });
+
+    const [forecastResult, setForecastResult] = useState(null);
+    const [forecastError, setForecastError] = useState(null);
+    const [forecastLoading, setForecastLoading] = useState(false);
+
+    useEffect(() => {
+        forecastWorkerRef.current = new Worker(
+            new URL("../workers/forecastWorker.js", import.meta.url),
+            { type: "module" }
+        );
+
+        return () => {
+            forecastWorkerRef.current?.terminate();
+            forecastWorkerRef.current = null;
+        };
+    }, []);
+
+    useEffect(() => {
+        const runForecast = async () => {
+            if (!stats?.dailyData?.length) return;
+            if (!forecastConfig.enabled) return;
+            if (!forecastWorkerRef.current) return;
+
+            setForecastError(null);
+            setForecastLoading(true);
+
+            const dates = stats.dailyData.map(d => d.date);
+            const values = stats.dailyData.map(d => Number(d.cost) || 0);
+
+            const cacheKey = createSeriesCacheKey({
+                dates,
+                values,
+                horizon: forecastConfig.horizon,
+                confidence: forecastConfig.confidence,
+                anomalyZ: forecastConfig.anomalyZ,
+            });
+
+            const cached = await getCachedForecast(cacheKey);
+            if (cached) {
+                setForecastResult(cached);
+                setForecastLoading(false);
+                return;
+            }
+
+            const requestId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+            const handleMessage = async (event) => {
+                const payload = event.data;
+                if (!payload || payload.requestId !== requestId) return;
+
+                forecastWorkerRef.current?.removeEventListener("message", handleMessage);
+
+                if (payload.error) {
+                    setForecastError(payload.error);
+                    setForecastResult(null);
+                    setForecastLoading(false);
+                    return;
+                }
+
+                setForecastResult(payload);
+                setForecastLoading(false);
+                await setCachedForecast(cacheKey, payload);
+            };
+
+            forecastWorkerRef.current.addEventListener("message", handleMessage);
+
+            forecastWorkerRef.current.postMessage({
+                requestId,
+                dates,
+                values,
+                horizon: forecastConfig.horizon,
+                confidence: forecastConfig.confidence,
+                anomalyZ: forecastConfig.anomalyZ,
+            });
+        };
+
+        runForecast();
+    }, [stats, forecastConfig.enabled, forecastConfig.horizon, forecastConfig.confidence, forecastConfig.anomalyZ]);
+
+    const trendData = useMemo(() => {
+        if (!stats?.dailyData?.length) return [];
+        const shouldShowForecast = forecastConfig.enabled && forecastResult?.forecast?.length;
+
+        const base = stats.dailyData.map((d, i) => ({
+            date: d.date,
+            actualCost: d.cost,
+            // Keep existing fields if you want (cumulativeCost etc.)
+            cumulativeCost: d.cumulativeCost,
+            modelCost: shouldShowForecast ? forecastResult?.fitted?.[i] ?? null : null,
+        }));
+
+        if (!shouldShowForecast) return base;
+
+        const future = forecastResult.forecast.map((y, idx) => ({
+            date: forecastResult.forecastDates?.[idx] ?? `+${idx + 1}`,
+            actualCost: null,
+            cumulativeCost: null,
+            modelCost: y,
+            ciLower: forecastResult.ciLower?.[idx] ?? null,
+            ciUpper: forecastResult.ciUpper?.[idx] ?? null,
+        }));
+
+        return [...base, ...future];
+    }, [stats, forecastResult, forecastConfig.enabled]);
+
+    const showForecast = forecastConfig.enabled && !!forecastResult?.forecast?.length;
+
+    useEffect(() => {
+        if (!forecastConfig.enabled) {
+            setForecastLoading(false);
+            setForecastError(null);
+            setForecastResult(null);
+        }
+    }, [forecastConfig.enabled]);
+
 
     // Helper: Sort Function
     const getSortedData = (data, tableKey) => {
@@ -80,7 +208,7 @@ export default function DailyUsage({ pricing = {} }) {
 
         // Safe Key Finding
         const findKey = (obj, target) => Object.keys(obj).find(k => k.toLowerCase().trim() === target.toLowerCase().trim());
-        
+
         const modelRaw = row[findKey(row, 'Model')] || 'unknown';
         const department = row[findKey(row, 'Department')] || 'Unassigned';
         const user = row[findKey(row, 'User')] || 'Unknown';
@@ -97,10 +225,10 @@ export default function DailyUsage({ pricing = {} }) {
         // Fallback to default if model not found
         const rates = (modelPriceKey && pricing.openai[modelPriceKey]) || { input: 0, output: 0, cached: 0 };
         const freshInput = Math.max(0, input - cached);
-        
+
         const cost = ((freshInput / 1e6) * rates.input) +
-                     ((cached / 1e6) * (rates.cached || rates.input)) +
-                     ((output / 1e6) * rates.output);
+            ((cached / 1e6) * (rates.cached || rates.input)) +
+            ((output / 1e6) * rates.output);
 
         const dateObj = timeStr ? new Date(timeStr) : new Date();
 
@@ -139,12 +267,12 @@ export default function DailyUsage({ pricing = {} }) {
         const models = new Set();
 
         const reader = new FileReader();
-        
+
         reader.onload = (event) => {
             const text = event.target.result;
             // Split by newline
             const lines = text.split('\n');
-            
+
             if (lines.length === 0) {
                 setProcessing(false);
                 setError("File is empty");
@@ -153,7 +281,7 @@ export default function DailyUsage({ pricing = {} }) {
 
             // Parse Headers
             const headers = lines[0].split(',').map(h => h.trim());
-            
+
             let processedCount = 0;
             let currentIndex = 1; // Skip header
             const totalLines = lines.length;
@@ -162,7 +290,7 @@ export default function DailyUsage({ pricing = {} }) {
             // Custom Parsing Loop
             const processChunk = () => {
                 const chunkEnd = Math.min(currentIndex + CHUNK_SIZE, totalLines);
-                
+
                 for (let i = currentIndex; i < chunkEnd; i++) {
                     const line = lines[i];
                     if (!line || !line.trim()) continue;
@@ -202,7 +330,7 @@ export default function DailyUsage({ pricing = {} }) {
                         departments: Array.from(depts).sort(),
                         models: Array.from(models).sort()
                     });
-                    
+
                     recalculateStats(); // Initial calculation
                     setProcessing(false);
                 }
@@ -320,10 +448,10 @@ export default function DailyUsage({ pricing = {} }) {
                 department: data.department,
                 uniqueExecutions: data.executionIds.size
             }));
-            // Sort later in UI
+        // Sort later in UI
 
         const nodeData = Object.values(tempStats.nodeMap);
-            // Sort later in UI
+        // Sort later in UI
 
         setStats({
             totalCost: tempStats.totalCost,
@@ -366,8 +494,8 @@ export default function DailyUsage({ pricing = {} }) {
     const SortHeader = ({ label, tableKey, colKey, align = 'left' }) => {
         const isActive = sortConfig[tableKey].key === colKey;
         return (
-            <th 
-                className={`px-4 py-3 cursor-pointer transition-colors select-none ${isActive ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-100'}`}
+            <th
+                className={`group px-4 py-3 cursor-pointer transition-colors select-none ${isActive ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-100'}`}
                 onClick={() => handleSort(colKey, tableKey)}
                 style={{ textAlign: align }}
             >
@@ -402,9 +530,9 @@ export default function DailyUsage({ pricing = {} }) {
                             <UploadCloud size={48} className="text-indigo-600" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-gray-800">Upload Large Usage Report</h3>
+                            <h3 className="text-xl font-bold text-gray-800">Upload AI Usage Report</h3>
                             <p className="text-gray-500 mt-2">
-                                Optimized for large datasets (1M+ rows).<br />
+                                Optimized for large exports (1M+ rows).<br />
                                 <span className="font-bold text-indigo-600">Please upload CSV files only.</span>
                             </p>
                         </div>
@@ -417,10 +545,10 @@ export default function DailyUsage({ pricing = {} }) {
             {processing && (
                 <div className="text-center p-12 bg-white rounded-xl shadow-sm">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                    <h3 className="text-lg font-bold text-gray-800">Analyzing Data Stream...</h3>
+                    <h3 className="text-lg font-bold text-gray-800">Summarizing usage and spend...</h3>
                     <p className="text-gray-500 mb-2">{fileName}</p>
                     <div className="text-2xl font-mono font-bold text-indigo-600">
-                        {rowCount.toLocaleString()} rows processed
+                        {rowCount.toLocaleString()} records processed
                     </div>
                 </div>
             )}
@@ -436,7 +564,7 @@ export default function DailyUsage({ pricing = {} }) {
                             </div>
                             <div>
                                 <h2 className="font-bold text-gray-800">{fileName}</h2>
-                                <p className="text-xs text-gray-500">{rowCount.toLocaleString()} total rows analyzed</p>
+                                <p className="text-xs text-gray-500">{rowCount.toLocaleString()} records processed</p>
                             </div>
                         </div>
                         <button
@@ -450,17 +578,17 @@ export default function DailyUsage({ pricing = {} }) {
                     {/* FILTER BAR - New Feature */}
                     <div className="glass-card p-4 rounded-lg flex flex-col lg:flex-row gap-4 items-center justify-between border-l-4 border-indigo-500">
                         <div className="flex items-center gap-2 text-indigo-900 font-bold shrink-0">
-                            <Filter size={20} /> Filters:
+                            <Filter size={20} /> Refine view
                         </div>
-                        
+
                         <div className="flex flex-wrap gap-3 items-center w-full lg:w-auto">
                             {/* Date Range */}
                             <div className="relative group">
                                 <Calendar size={16} className="absolute left-3 top-2.5 text-gray-400" />
-                                <select 
+                                <select
                                     className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none hover:border-indigo-300 transition-colors cursor-pointer appearance-none min-w-[140px]"
                                     value={filters.dateRange}
-                                    onChange={(e) => setFilters({...filters, dateRange: e.target.value})}
+                                    onChange={(e) => setFilters({ ...filters, dateRange: e.target.value })}
                                 >
                                     <option value="all">All Time</option>
                                     <option value="7">Last 7 Days</option>
@@ -471,15 +599,12 @@ export default function DailyUsage({ pricing = {} }) {
                             {/* Department - Multi-select Simulation via Dropdown */}
                             <div className="relative">
                                 <Layers size={16} className="absolute left-3 top-2.5 text-gray-400" />
-                                <select 
-                                    className="pl-9 pr-8 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none hover:border-indigo-300 transition-colors cursor-pointer appearance-none min-w-[160px]"
-                                    value={filters.departments.length > 0 ? 'selected' : 'all'}
+                                <select
+                                    className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none hover:border-indigo-300 transition-colors cursor-pointer appearance-none min-w-[160px]"
+                                    value={filters.departments.length ? filters.departments[0] : 'all'}
                                     onChange={(e) => {
                                         const val = e.target.value;
-                                        setFilters({
-                                            ...filters, 
-                                            departments: val === 'all' ? [] : [val] // Simple toggle for now, can be expanded to full multi-select logic
-                                        });
+                                        setFilters({ ...filters, departments: val === 'all' ? [] : [val] });
                                     }}
                                 >
                                     <option value="all">All Departments</option>
@@ -487,6 +612,7 @@ export default function DailyUsage({ pricing = {} }) {
                                         <option key={d} value={d}>{d}</option>
                                     ))}
                                 </select>
+
                                 {filters.departments.length > 0 && (
                                     <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
                                         {filters.departments.length}
@@ -497,24 +623,24 @@ export default function DailyUsage({ pricing = {} }) {
                             {/* User Search */}
                             <div className="relative">
                                 <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
-                                <input 
-                                    type="text" 
-                                    placeholder="Search user..."
+                                <input
+                                    type="text"
+                                    placeholder="Search person or team..."
                                     className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-w-[160px]"
                                     value={filters.user}
-                                    onChange={(e) => setFilters({...filters, user: e.target.value})}
+                                    onChange={(e) => setFilters({ ...filters, user: e.target.value })}
                                 />
                             </div>
 
                             {/* Model */}
                             <div className="relative">
                                 <Cpu size={16} className="absolute left-3 top-2.5 text-gray-400" />
-                                <select 
+                                <select
                                     className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none min-w-[160px]"
                                     value={filters.model}
-                                    onChange={(e) => setFilters({...filters, model: e.target.value})}
+                                    onChange={(e) => setFilters({ ...filters, model: e.target.value })}
                                 >
-                                    <option value="all">All Models</option>
+                                    <option value="all">All AI Models</option>
                                     {availableOptions.models.map(m => (
                                         <option key={m} value={m}>{m}</option>
                                     ))}
@@ -523,12 +649,12 @@ export default function DailyUsage({ pricing = {} }) {
 
                             {/* Min Cost Slider */}
                             <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-md">
-                                <span className="text-xs font-medium text-gray-500">Min $</span>
-                                <input 
+                                <span className="text-xs font-medium text-gray-500">Min $/day</span>
+                                <input
                                     type="range" min="0" max="100" step="1"
                                     className="w-24 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                                     value={filters.minCost}
-                                    onChange={(e) => setFilters({...filters, minCost: parseFloat(e.target.value)})}
+                                    onChange={(e) => setFilters({ ...filters, minCost: parseFloat(e.target.value) })}
                                 />
                                 <span className="text-xs font-bold text-indigo-600 w-8">${filters.minCost}</span>
                             </div>
@@ -538,42 +664,102 @@ export default function DailyUsage({ pricing = {} }) {
                     {/* KPI Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="glass-card p-6 rounded-lg border-l-4 border-indigo-500">
-                            <p className="text-sm font-medium text-gray-500 mb-1">Total Estimated Cost</p>
+                            <p className="text-sm font-medium text-gray-500 mb-1">Total AI spend (estimate)</p>
                             <div className="text-3xl font-bold text-gray-900">${stats.totalCost.toFixed(2)}</div>
+                            <p className="text-xs text-gray-400 mt-1">Based on configured pricing</p>
                         </div>
                         <div className="glass-card p-6 rounded-lg border-l-4 border-emerald-500">
-                            <p className="text-sm font-medium text-gray-500 mb-1">Total Token Volume</p>
+                            <p className="text-sm font-medium text-gray-500 mb-1">Usage volume (text units)</p>
                             <div className="text-3xl font-bold text-gray-900">{(stats.totalTokens / 1e6).toFixed(2)}M</div>
+                            <p className="text-xs text-gray-400 mt-1">Higher volume usually means higher cost</p>
                         </div>
                         <div className="glass-card p-6 rounded-lg border-l-4 border-blue-500">
-                            <p className="text-sm font-medium text-gray-500 mb-1">Unique Executions</p>
+                            <p className="text-sm font-medium text-gray-500 mb-1">Automation runs</p>
                             <div className="text-3xl font-bold text-gray-900">{stats.totalUniqueExecutions.toLocaleString()}</div>
+                            <p className="text-xs text-gray-400 mt-1">Distinct workflow executions</p>
                         </div>
                     </div>
+
+                    <div className="mb-4 flex flex-wrap gap-3 items-center">
+                        <label className="flex items-center gap-2 text-sm text-gray-600">
+                            <input
+                                type="checkbox"
+                                checked={forecastConfig.enabled}
+                                onChange={(e) => setForecastConfig((p) => ({ ...p, enabled: e.target.checked }))}
+                            />
+                            Show spend forecast
+                        </label>
+
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">Days ahead</span>
+                            <input
+                                type="number"
+                                min="1"
+                                max="365"
+                                value={forecastConfig.horizon}
+                                onChange={(e) => setForecastConfig((p) => ({ ...p, horizon: Number(e.target.value) || 14 }))}
+                                className="w-20 px-2 py-1 border border-gray-200 rounded"
+                            />
+                        </div>
+
+                        <select
+                            value={forecastConfig.confidence}
+                            onChange={(e) => setForecastConfig((p) => ({ ...p, confidence: Number(e.target.value) }))}
+                            className="px-2 py-1 border border-gray-200 rounded text-sm"
+                        >
+                            <option value={0.95}>95% range</option>
+                            <option value={0.99}>99% range</option>
+                        </select>
+
+                        {forecastLoading && <span className="text-xs text-gray-400">Forecasting…</span>}
+                        {forecastError && <span className="text-xs text-red-600">{forecastError}</span>}
+                    </div>
+
 
                     {/* Main Charts Row */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Daily Trend */}
                         <div className="lg:col-span-2 glass-card p-6 rounded-lg">
                             <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
-                                <TrendingUp size={18} className="text-gray-400" /> Daily Cost Trend
+                                <TrendingUp size={18} className="text-gray-400" /> Daily AI spend
                             </h3>
+                            <p className="text-xs text-gray-500 -mt-4 mb-4">
+                                Bars show actual daily spend. Lines show forecast and expected range.
+                            </p>
                             <div className="h-72">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <ComposedChart data={stats.dailyData}>
+                                    <ComposedChart data={trendData}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                         <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                                         <YAxis yAxisId="left" orientation="left" tickFormatter={(v) => `$${v}`} />
                                         <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `$${v}`} />
                                         <Tooltip
-                                            formatter={(value, name) => [
-                                                name === 'cumulativeCost' || name === 'cost' ? `$${value.toFixed(2)}` : value,
-                                                name === 'cumulativeCost' ? 'Cumulative' : 'Daily Cost'
-                                            ]}
+                                            formatter={(value, name) => {
+                                                if (value == null || Number.isNaN(Number(value))) return ["—", name];
+                                                const num = Number(value);
+                                                const label =
+                                                    name === "cumulativeCost" ? "Total to date" :
+                                                        name === "actualCost" ? "Daily spend" :
+                                                            name === "modelCost" ? "Forecast" :
+                                                                name === "ciUpper" ? "High estimate" :
+                                                                    name === "ciLower" ? "Low estimate" :
+                                                                        name;
+                                                return [`$${num.toFixed(2)}`, label];
+                                            }}
                                         />
+
                                         <Legend />
-                                        <Bar yAxisId="left" dataKey="cost" name="Daily Cost" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                                        <Line yAxisId="right" type="monotone" dataKey="cumulativeCost" name="Cumulative" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                                        <Bar yAxisId="left" dataKey="actualCost" name="Daily spend" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                                        {showForecast && (
+                                            <>
+                                                <Line yAxisId="left" type="monotone" dataKey="modelCost" name="Forecast" strokeWidth={2} dot={false} />
+                                                <Line yAxisId="left" type="monotone" dataKey="ciUpper" name="High estimate" strokeDasharray="4 4" dot={false} />
+                                                <Line yAxisId="left" type="monotone" dataKey="ciLower" name="Low estimate" strokeDasharray="4 4" dot={false} />
+                                            </>
+                                        )}
+
+                                        {/* Keep your cumulative line if you want historical-only */}
+                                        <Line yAxisId="right" type="monotone" dataKey="cumulativeCost" name="Total to date" stroke="#f59e0b" strokeWidth={2} dot={false} />
                                     </ComposedChart>
                                 </ResponsiveContainer>
                             </div>
@@ -582,8 +768,11 @@ export default function DailyUsage({ pricing = {} }) {
                         {/* Department Pie */}
                         <div className="glass-card p-6 rounded-lg">
                             <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
-                                <Layers size={18} className="text-gray-400" /> Cost by Dept
+                                <Layers size={18} className="text-gray-400" /> Spend by department
                             </h3>
+                            <p className="text-xs text-gray-500 -mt-4 mb-4">
+                                Share of total spend by team.
+                            </p>
                             <div className="h-64">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
@@ -609,17 +798,17 @@ export default function DailyUsage({ pricing = {} }) {
                     {/* NEW: Detailed Department Breakdown Table */}
                     <div className="glass-card p-6 rounded-lg animate-slide-in">
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <Layers size={18} className="text-gray-400" /> Department Breakdown
+                            <Layers size={18} className="text-gray-400" /> Department spend details
                         </h3>
                         <div className="overflow-auto max-h-[300px]">
                             <table className="w-full text-sm text-left">
                                 <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
                                     <tr>
                                         <SortHeader tableKey="dept" colKey="name" label="Department" />
-                                        <SortHeader tableKey="dept" colKey="cost" label="Total Cost" align="right" />
-                                        <SortHeader tableKey="dept" colKey="pct" label="% Total" align="right" />
-                                        <SortHeader tableKey="dept" colKey="uniqueExecutions" label="Executions" align="right" />
-                                        <SortHeader tableKey="dept" colKey="avgDaily" label="Avg Daily Cost" align="right" />
+                                        <SortHeader tableKey="dept" colKey="cost" label="Total spend" align="right" />
+                                        <SortHeader tableKey="dept" colKey="pct" label="Share of spend" align="right" />
+                                        <SortHeader tableKey="dept" colKey="uniqueExecutions" label="Runs" align="right" />
+                                        <SortHeader tableKey="dept" colKey="avgDaily" label="Avg daily spend" align="right" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -640,17 +829,17 @@ export default function DailyUsage({ pricing = {} }) {
                     {/* Top Users Table */}
                     <div className="glass-card p-6 rounded-lg">
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <Users size={18} className="text-gray-400" /> Top Users by Cost
+                            <Users size={18} className="text-gray-400" /> Top people by spend
                         </h3>
                         <div className="overflow-auto max-h-[400px]">
                             <table className="w-full text-sm text-left">
                                 <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
                                     <tr>
-                                        <SortHeader tableKey="user" colKey="name" label="User" />
+                                        <SortHeader tableKey="user" colKey="name" label="Person" />
                                         <SortHeader tableKey="user" colKey="department" label="Department" />
-                                        <SortHeader tableKey="user" colKey="uniqueExecutions" label="Execs" align="right" />
-                                        <SortHeader tableKey="user" colKey="tokens" label="Tokens" align="right" />
-                                        <SortHeader tableKey="user" colKey="cost" label="Cost" align="right" />
+                                        <SortHeader tableKey="user" colKey="uniqueExecutions" label="Runs" align="right" />
+                                        <SortHeader tableKey="user" colKey="tokens" label="Usage volume (tokens)" align="right" />
+                                        <SortHeader tableKey="user" colKey="cost" label="Spend" align="right" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -668,21 +857,24 @@ export default function DailyUsage({ pricing = {} }) {
                                 </tbody>
                             </table>
                         </div>
+                        <div className="text-xs text-gray-500 mt-2">
+                            Usage volume reflects text processed; spend is the direct cost impact.
+                        </div>
                     </div>
 
                     {/* Top Nodes Table */}
                     <div className="glass-card p-6 rounded-lg">
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <Server size={18} className="text-gray-400" /> Top AI Nodes by Cost
+                            <Server size={18} className="text-gray-400" /> Top workflow steps by spend
                         </h3>
                         <div className="overflow-auto max-h-[400px]">
                             <table className="w-full text-sm text-left">
                                 <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
                                     <tr>
-                                        <SortHeader tableKey="node" colKey="name" label="Node Name" />
-                                        <SortHeader tableKey="node" colKey="model" label="Model" />
-                                        <SortHeader tableKey="node" colKey="rowCount" label="Ops Count" align="right" />
-                                        <SortHeader tableKey="node" colKey="cost" label="Cost" align="right" />
+                                        <SortHeader tableKey="node" colKey="name" label="Workflow step" />
+                                        <SortHeader tableKey="node" colKey="model" label="AI model" />
+                                        <SortHeader tableKey="node" colKey="rowCount" label="Runs" align="right" />
+                                        <SortHeader tableKey="node" colKey="cost" label="Spend" align="right" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -697,7 +889,11 @@ export default function DailyUsage({ pricing = {} }) {
                                 </tbody>
                             </table>
                         </div>
+                        <div className="text-xs text-gray-500 mt-2">
+                            Workflow steps are the AI nodes inside your automations.
+                        </div>
                     </div>
+                    <ForecastIntelligence dailyData={stats.dailyData} />
                 </>
             )}
         </div>
