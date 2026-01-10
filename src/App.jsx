@@ -13,14 +13,13 @@ import PineconeSection from './components/PineconeSection';
 import SettingsModal from './components/SettingsModal';
 import Toast from './components/Toast';
 import DailyUsage from './components/DailyUsage';
-import DataGenerator from './components/DataGenerator'; // <--- IMPORT NEW COMPONENT
+import DataGenerator from './components/DataGenerator';
 
-// Chart Colors
+// Chart Colors matched to design system
 const COLORS = ['#f97316', '#2563eb', '#4f46e5'];
 
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  // Default state is 'analytics'
   const [activeTab, setActiveTab] = useState('analytics');
   const [status, setStatus] = useState("Initializing...");
   const [toast, setToast] = useState(null);
@@ -65,8 +64,9 @@ function App() {
         'OpenAI',
         node.name,
         `${node.model} (${node.executionsPerDay} runs/day)`,
-        // Re-calc row cost for CSV
-        ((pricing.openai[node.model].input * (node.inputTokens / 1e6) + pricing.openai[node.model].output * (node.outputTokens / 1e6)) * node.executionsPerDay * daysInMonth).toFixed(2)
+        // Re-calc row cost logic for CSV consistency
+        // Using simplified logic here for the export row; detailed logic is in the component/utils
+         (( (pricing.openai[node.model]?.input || 0) * (node.inputTokens / 1e6) + (pricing.openai[node.model]?.output || 0) * (node.outputTokens / 1e6)) * node.executionsPerDay * daysInMonth).toFixed(2)
       ]),
       ['TOTAL', '', `Based on ${daysInMonth} days`, grandTotal.toFixed(2)]
     ];
@@ -156,18 +156,18 @@ function App() {
 
           {/* Right Column: Visualization Sticky Panel */}
           <div className="lg:col-span-1">
-            <div className="glass-card p-6 rounded-lg border border-gray-200 sticky top-8">
-              <div className="flex justify-between items-center mb-4">
+            <div className="glass-card p-6 rounded-xl border border-gray-200 sticky top-6">
+              <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <PieIcon size={20} className="text-slate-500" /> Cost Breakdown
+                  <PieIcon size={20} className="text-gray-400" /> Cost Breakdown
                 </h2>
-                <button onClick={handleExport} className="p-1.5 bg-gray-50 rounded hover:bg-gray-100 text-gray-600" title="Export Forecast CSV">
-                  <Download size={16} />
+                <button onClick={handleExport} className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors" title="Export Forecast CSV">
+                  <Download size={18} />
                 </button>
               </div>
 
               {/* The Chart */}
-              <div className="h-64 w-full">
+              <div className="h-64 w-full mb-6 relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -182,21 +182,21 @@ function App() {
                       ))}
                     </Pie>
                     <Tooltip formatter={(value) => formatCurrency(value)} />
-                    <Legend />
+                    <Legend wrapperStyle={{fontSize: '12px', paddingTop: '10px'}} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Grand Total Card */}
-              <div className="mt-6 pt-6 border-t border-dashed border-gray-200 text-center">
-                <div className="text-gray-500 text-sm font-medium uppercase tracking-wide">
-                  Total Monthly OpEx
+              <div className="pt-6 border-t border-dashed border-gray-200 text-center">
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Projected Monthly OpEx
                 </div>
-                <div className="text-4xl font-extrabold text-gradient mt-2">
+                <div className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-500 mt-2 pb-1">
                   {formatCurrency(grandTotal)}
                 </div>
-                <div className="text-xs text-gray-400 mt-2">
-                  *Calculated for {getDaysInCurrentMonth()} days
+                <div className="text-xs text-gray-400 mt-3 font-medium bg-gray-50 inline-block px-3 py-1 rounded-full border border-gray-100">
+                  *Calculated based on {getDaysInCurrentMonth()} calendar days
                 </div>
               </div>
             </div>
@@ -211,51 +211,50 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 font-sans text-slate-800">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-800">
+      <div className="max-w-7xl mx-auto">
 
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Financial & Operational Impact Dashboard</h1>
-            <p className="text-slate-500">Real-time cost modeling & usage analytics</p>
+            <p className="text-slate-500 mt-1">Real-time cost modeling & usage analytics</p>
           </div>
           <div className="flex gap-3">
-            <div className="glass-card px-4 py-2 rounded shadow text-sm font-medium flex items-center min-w-[140px] justify-center">
+            <div className="glass-card px-4 py-2 rounded-lg shadow-sm text-sm font-medium flex items-center min-w-[140px] justify-center border border-gray-200">
               <span className={`w-2 h-2 rounded-full mr-2 ${status.includes("Fail") || status.includes("Error") || status.includes("Offline") ? "bg-red-500" : "bg-green-500"}`}></span>
               {status}
             </div>
 
-            <button onClick={loadData} className="p-2 glass-card rounded shadow hover:bg-white text-gray-700" title="Refresh from DB">
+            <button onClick={loadData} className="p-2 glass-card rounded-lg shadow-sm border border-gray-200 hover:bg-white text-gray-700 transition-all" title="Refresh from DB">
               <RefreshCw size={20} />
             </button>
-            <button onClick={() => setIsSettingsOpen(true)} className="p-2 glass-card rounded shadow hover:bg-white text-gray-700">
+            <button onClick={() => setIsSettingsOpen(true)} className="p-2 glass-card rounded-lg shadow-sm border border-gray-200 hover:bg-white text-gray-700 transition-all">
               <Settings size={20} />
             </button>
-            <button onClick={() => handleSave(false)} className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded shadow hover:bg-gray-800 transition-colors">
+            <button onClick={() => handleSave(false)} className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-md hover:bg-slate-800 transition-all active:scale-95">
               <Save size={18} /> Save Session
             </button>
           </div>
         </header>
 
         {/* Tab Navigation */}
-        <div className="mb-8 flex space-x-1 glass-card p-1 rounded-lg shadow-sm w-fit overflow-x-auto">
+        <div className="mb-8 flex space-x-1 glass-card p-1.5 rounded-xl shadow-sm w-fit overflow-x-auto border border-gray-200">
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'analytics' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:text-gray-900'}`}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'analytics' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
           >
             <BarChart2 size={18} /> Daily Analytics
           </button>
           <button
             onClick={() => setActiveTab('calculator')}
-            className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'calculator' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:text-gray-900'}`}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'calculator' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
           >
             <Calculator size={18} /> Forecast Calculator
           </button>
-          {/* NEW GENERATOR TAB */}
           <button
             onClick={() => setActiveTab('generator')}
-            className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'generator' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:text-gray-900'}`}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'generator' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
           >
             <Database size={18} /> Test Data Generator
           </button>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Cpu, Users, Clock } from 'lucide-react';
 
 export default function N8nSection({ data, setData, pricing, calculatedCost }) {
     const { plan, users, executionsPerUser, duration } = data;
@@ -6,15 +7,24 @@ export default function N8nSection({ data, setData, pricing, calculatedCost }) {
     const totalExecutions = users * executionsPerUser;
     const isOverLimit = totalExecutions > currentPlan.limit;
 
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">1. N8n Workflow Execution</h2>
+    // Styles matching Daily Analytics inputs
+    const inputClass = "w-full px-3 py-2 border border-gray-200 rounded-lg bg-white/50 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all";
+    const labelClass = "block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5";
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    return (
+        <div className="glass-card p-6 rounded-xl animate-slide-in">
+            <div className="flex items-center gap-2 mb-6 border-b border-gray-100 pb-4">
+                <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
+                    <Cpu size={20} />
+                </div>
+                <h2 className="text-lg font-bold text-gray-800">1. N8n Infrastructure</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Select Plan</label>
+                    <label className={labelClass}>License Plan</label>
                     <select
-                        className="w-full p-2 border rounded"
+                        className={inputClass}
                         value={plan}
                         onChange={(e) => setData({ ...data, plan: e.target.value })}
                     >
@@ -25,47 +35,58 @@ export default function N8nSection({ data, setData, pricing, calculatedCost }) {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Billing Duration</label>
+                    <label className={labelClass}>Billing Cycle</label>
                     <select
-                        className="w-full p-2 border rounded"
+                        className={inputClass}
                         value={duration}
                         onChange={(e) => setData({ ...data, duration: e.target.value })}
                     >
-                        <option value="monthly">Monthly</option>
-                        <option value="yearly">Yearly</option>
+                        <option value="monthly">Monthly Billing</option>
+                        <option value="yearly">Yearly (Discounted)</option>
                     </select>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Number of Users</label>
-                    <input
-                        type="number" className="w-full p-2 border rounded"
-                        value={users}
-                        onChange={(e) => setData({ ...data, users: parseInt(e.target.value) || 0 })}
-                    />
+                    <label className={labelClass}>Active Users</label>
+                    <div className="relative">
+                        <Users size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                        <input
+                            type="number" 
+                            className={`${inputClass} pl-9`}
+                            value={users}
+                            min="0"
+                            onChange={(e) => setData({ ...data, users: parseInt(e.target.value) || 0 })}
+                        />
+                    </div>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Executions per User</label>
-                    <input
-                        type="number" className="w-full p-2 border rounded"
-                        value={executionsPerUser}
-                        onChange={(e) => setData({ ...data, executionsPerUser: parseInt(e.target.value) || 0 })}
-                    />
+                    <label className={labelClass}>Executions / User</label>
+                    <div className="relative">
+                        <Clock size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                        <input
+                            type="number" 
+                            className={`${inputClass} pl-9`}
+                            value={executionsPerUser}
+                            min="0"
+                            onChange={(e) => setData({ ...data, executionsPerUser: parseInt(e.target.value) || 0 })}
+                        />
+                    </div>
                 </div>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-md flex justify-between items-center">
+            {/* KPI Summary Card Style */}
+            <div className="bg-gray-50/50 border border-gray-100 p-4 rounded-xl flex justify-between items-center">
                 <div>
-                    <div className="text-sm text-gray-500">Total Executions Required</div>
-                    <div className={`text-xl font-bold ${isOverLimit ? 'text-red-600' : 'text-gray-900'}`}>
-                        {totalExecutions.toLocaleString()} / {currentPlan.limit.toLocaleString()}
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Total Load</div>
+                    <div className={`text-lg font-bold ${isOverLimit ? 'text-red-600' : 'text-gray-800'}`}>
+                        {totalExecutions.toLocaleString()} <span className="text-sm font-normal text-gray-400">/ {currentPlan.limit.toLocaleString()} limit</span>
                     </div>
-                    {isOverLimit && <div className="text-xs text-red-500 font-bold mt-1">⚠️ EXCEEDS PLAN LIMIT</div>}
+                    {isOverLimit && <div className="text-[10px] text-red-500 font-bold mt-1 bg-red-50 inline-block px-1.5 py-0.5 rounded">⚠️ PLAN LIMIT EXCEEDED</div>}
                 </div>
                 <div className="text-right">
-                    <div className="text-sm text-gray-500">Estimated Cost ({duration})</div>
-                    <div className="text-2xl font-bold text-indigo-600">${calculatedCost.toFixed(2)}</div>
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Monthly Cost</div>
+                    <div className="text-2xl font-extrabold text-gray-900">${calculatedCost.toFixed(2)}</div>
                 </div>
             </div>
         </div>

@@ -1,48 +1,94 @@
 import React from 'react';
+import { Database, HardDrive, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
 export default function PineconeSection({ data, setData, pricing, calculatedCost }) {
   const { plan, storageGB, readUnits, writeUnits } = data;
   const rates = pricing.pinecone;
-  const planMin = rates.plans[plan].min;
+  const planDetails = rates.plans && rates.plans[plan] ? rates.plans[plan] : { min: 0 };
   
   // Just for display logic
   const rawUsageCost = (storageGB * rates.storage) + (readUnits / 1e6 * rates.read) + (writeUnits / 1e6 * rates.write);
 
-  return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mt-6">
-      <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">3. Pinecone Memory (Vector DB)</h2>
+  // Styles matching Daily Analytics inputs
+  const inputClass = "w-full px-3 py-2 border border-gray-200 rounded-lg bg-white/50 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all pl-9";
+  const labelClass = "block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5";
+  const iconClass = "absolute left-3 top-2.5 text-gray-400";
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+  return (
+    <div className="glass-card p-6 rounded-xl mt-6 animate-slide-in" style={{ animationDelay: '0.2s' }}>
+      <div className="flex items-center gap-2 mb-6 border-b border-gray-100 pb-4">
+          <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+              <Database size={20} />
+          </div>
+          <h2 className="text-lg font-bold text-gray-800">3. Pinecone Memory (Vector DB)</h2>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div className="md:col-span-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Plan Tier</label>
-            <select className="w-full p-2 border rounded" value={plan} onChange={(e) => setData({...data, plan: e.target.value})}>
+            <label className={labelClass}>Plan Tier</label>
+            <select 
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white/50 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                value={plan} 
+                onChange={(e) => setData({...data, plan: e.target.value})}
+            >
                 {Object.entries(rates.plans).map(([key, val]) => (
                     <option key={key} value={key}>{val.label}</option>
                 ))}
             </select>
         </div>
+        
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Storage (GB)</label>
-            <input type="number" step="0.1" className="w-full p-2 border rounded" value={storageGB} onChange={(e) => setData({...data, storageGB: parseFloat(e.target.value) || 0})}/>
+            <label className={labelClass}>Storage (GB)</label>
+            <div className="relative">
+                <HardDrive size={16} className={iconClass} />
+                <input 
+                    type="number" step="0.1" min="0"
+                    className={inputClass} 
+                    value={storageGB} 
+                    onChange={(e) => setData({...data, storageGB: parseFloat(e.target.value) || 0})}
+                />
+            </div>
         </div>
+
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Read Units (RUs)</label>
-            <input type="number" className="w-full p-2 border rounded" value={readUnits} onChange={(e) => setData({...data, readUnits: parseFloat(e.target.value) || 0})}/>
+            <label className={labelClass}>Read Units</label>
+            <div className="relative">
+                <ArrowUpCircle size={16} className={iconClass} />
+                <input 
+                    type="number" min="0"
+                    className={inputClass} 
+                    value={readUnits} 
+                    onChange={(e) => setData({...data, readUnits: parseFloat(e.target.value) || 0})}
+                />
+            </div>
         </div>
+
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Write Units (WUs)</label>
-            <input type="number" className="w-full p-2 border rounded" value={writeUnits} onChange={(e) => setData({...data, writeUnits: parseFloat(e.target.value) || 0})}/>
+            <label className={labelClass}>Write Units</label>
+            <div className="relative">
+                <ArrowDownCircle size={16} className={iconClass} />
+                <input 
+                    type="number" min="0"
+                    className={inputClass} 
+                    value={writeUnits} 
+                    onChange={(e) => setData({...data, writeUnits: parseFloat(e.target.value) || 0})}
+                />
+            </div>
         </div>
       </div>
 
-      <div className="bg-gray-50 p-4 rounded-md flex justify-between items-center">
-        <div className="text-sm text-gray-500">
-            Raw Usage: ${rawUsageCost.toFixed(4)} <br/>
-            Minimum Floor: ${planMin.toFixed(2)}
+      <div className="bg-gray-50/50 border border-gray-100 p-4 rounded-xl flex justify-between items-center">
+        <div>
+           <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Billing Details</div>
+           <div className="text-sm text-gray-600">
+              Raw Usage: <span className="font-mono">${rawUsageCost.toFixed(4)}</span>
+              <span className="mx-2 text-gray-300">|</span>
+              Plan Floor: <span className="font-mono">${planDetails.min.toFixed(2)}</span>
+           </div>
         </div>
         <div className="text-right">
-          <div className="text-sm text-gray-500">Total Database Cost</div>
-          <div className="text-2xl font-bold text-indigo-600">${calculatedCost.toFixed(2)}</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Database Cost</div>
+          <div className="text-2xl font-extrabold text-gray-900">${calculatedCost.toFixed(2)}</div>
         </div>
       </div>
     </div>
