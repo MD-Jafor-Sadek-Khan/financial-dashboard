@@ -108,13 +108,13 @@ export default function DataGenerator({ pricing }) {
                 <div className="inline-flex justify-center items-center p-4 bg-indigo-50 rounded-full text-indigo-600 mb-4">
                     <Database size={40} />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-800">Big Data Generator</h2>
-                <p className="text-gray-500 mt-2">Generate massive, valid CSV datasets for stress testing.</p>
+                <h2 className="text-2xl font-bold text-gray-800">Sample Data Generator</h2>
+                <p className="text-gray-500 mt-2">Create sample CSV files for demos and testing.</p>
             </div>
 
             <div className="space-y-6">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Number of Rows</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Number of rows</label>
                     <select 
                         value={rowCount} 
                         onChange={(e) => setRowCount(parseInt(e.target.value))}
@@ -131,24 +131,24 @@ export default function DataGenerator({ pricing }) {
                 </div>
 
                 {!isGenerating && !generatedFile && (
-                    <button 
-                        onClick={generateCSV}
-                        className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg shadow transition-all flex items-center justify-center gap-2"
-                    >
-                        <FileText size={20} /> Generate CSV
-                    </button>
+                        <button 
+                            onClick={generateCSV}
+                            className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg shadow transition-all flex items-center justify-center gap-2"
+                        >
+                            <FileText size={20} /> Generate sample CSV
+                        </button>
                 )}
 
                 {isGenerating && (
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm font-medium text-gray-600">
-                            <span>Generating...</span>
+                            <span>Building file...</span>
                             <span>{progress}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2.5">
                             <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-75" style={{ width: `${progress}%` }}></div>
                         </div>
-                        <p className="text-xs text-center text-gray-400 mt-2">Please wait, constructing data chunks...</p>
+                        <p className="text-xs text-center text-gray-400 mt-2">Please wait, building the file...</p>
                     </div>
                 )}
 
@@ -157,7 +157,7 @@ export default function DataGenerator({ pricing }) {
                         <div className="flex justify-center text-green-600 mb-2">
                             <CheckCircle size={32} />
                         </div>
-                        <h3 className="text-lg font-bold text-green-800">Generation Complete!</h3>
+                        <h3 className="text-lg font-bold text-green-800">Your file is ready</h3>
                         <p className="text-sm text-green-700 mb-4">File Size: {generatedFile.size} MB</p>
                         
                         <a 
@@ -165,14 +165,14 @@ export default function DataGenerator({ pricing }) {
                             download={generatedFile.name}
                             className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold shadow transition-colors"
                         >
-                            <Download size={20} /> Download CSV
+                            <Download size={20} /> Download sample CSV
                         </a>
                         
                         <button 
                             onClick={() => setGeneratedFile(null)} 
                             className="block w-full mt-4 text-sm text-gray-500 hover:text-gray-700 underline"
                         >
-                            Generate Another
+                            Generate another
                         </button>
                     </div>
                 )}

@@ -117,13 +117,13 @@ export default function ForecastIntelligence({ dailyData }) {
   }, [dailyData, config.target]);
 
   const isCountTarget = config.target === "executions";
-  const targetTitle = isCountTarget ? "Run" : "Spend";
-  const targetNoun = isCountTarget ? "runs" : "spend";
+  const targetTitle = isCountTarget ? "Usage" : "Spend";
+  const targetNoun = isCountTarget ? "usage" : "spend";
   const driversTitle = isCountTarget ? "Usage drivers and stability" : "Spend drivers and stability";
   const variabilityLabel = isCountTarget ? "Usage variability signals" : "Spend variability signals";
-  const zeroLabel = isCountTarget ? "Zero-run days" : "Zero-spend days";
-  const shiftTitle = isCountTarget ? "Meaningful shifts in runs" : "Meaningful shifts in spend";
-  const actualLabel = isCountTarget ? "Actual runs" : "Actual spend";
+  const zeroLabel = isCountTarget ? "Zero-usage days" : "Zero-spend days";
+  const shiftTitle = isCountTarget ? "Meaningful shifts in usage" : "Meaningful shifts in spend";
+  const actualLabel = isCountTarget ? "Actual usage" : "Actual spend";
   const analysis = result?.analysis;
   const modelLeaderboard = result?.modelLeaderboard || [];
 
@@ -174,10 +174,10 @@ export default function ForecastIntelligence({ dailyData }) {
     return notes.map((note) => {
       if (note.startsWith("Weekly seasonality: ON")) return "Weekly pattern: on";
       if (note.startsWith("Weekly seasonality: OFF")) return "Weekly pattern: off";
-      if (note.startsWith("Variance stabilization: log1p")) return "Variability adjustment: on";
-      if (note.startsWith("Variance stabilization: none")) return "Variability adjustment: off";
+      if (note.startsWith("Variance stabilization: log1p")) return "Spike smoothing: on";
+      if (note.startsWith("Variance stabilization: none")) return "Spike smoothing: off";
       if (note.startsWith("Interval method:")) {
-        return `Range method:${note.replace("Interval method:", "")}`;
+        return `Range style:${note.replace("Interval method:", "")}`;
       }
       return note;
     });
@@ -264,7 +264,7 @@ export default function ForecastIntelligence({ dailyData }) {
     if (!result?.forecastDates?.length) return;
 
     const rows = [
-      ["Date", "Forecast", "CI Lower", "CI Upper"],
+      ["Date", "Forecast", "Low estimate", "High estimate"],
       ...result.forecastDates.map((d, i) => [
         d,
         (result.forecast?.[i] ?? "").toFixed?.(4) ?? result.forecast?.[i] ?? "",
@@ -291,7 +291,7 @@ export default function ForecastIntelligence({ dailyData }) {
           </div>
           <div>
             <h3 className="font-extrabold text-gray-900">
-              {targetTitle} Forecast Intelligence
+              {targetTitle} Forecast Insights
             </h3>
             <p className="text-xs text-gray-500">
               Projects future {targetNoun} and highlights unusual days based on historical usage.
@@ -304,9 +304,9 @@ export default function ForecastIntelligence({ dailyData }) {
             onClick={exportForecastCsv}
             disabled={!result?.forecastDates?.length}
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 hover:bg-white text-gray-700 text-sm font-bold disabled:opacity-50"
-            title="Export this forecast to CSV"
+            title="Download forecast CSV"
           >
-            <Download size={16} /> Export Forecast
+            <Download size={16} /> Download forecast
           </button>
         </div>
       </div>
@@ -319,35 +319,35 @@ export default function ForecastIntelligence({ dailyData }) {
             checked={config.enabled}
             onChange={(e) => setConfig((p) => ({ ...p, enabled: e.target.checked }))}
           />
-          Enabled
+          Show
         </label>
 
         <div className="md:col-span-1">
-          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Forecast target</div>
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Forecast focus</div>
           <select
             className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
             value={config.target}
             onChange={(e) => setConfig((p) => ({ ...p, target: e.target.value }))}
           >
             <option value="cost">Daily spend</option>
-            <option value="executions">Daily runs</option>
+            <option value="executions">Daily usage (runs)</option>
           </select>
         </div>
 
         <div className="md:col-span-1">
-          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Method</div>
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Forecast style</div>
           <select
             className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
             value={config.model}
             onChange={(e) => setConfig((p) => ({ ...p, model: e.target.value }))}
           >
-            <option value="auto">Auto (Best accuracy)</option>
-            <option value="ensemble">Blended (Weighted)</option>
-            <option value="seasonal_naive">Seasonal Naive</option>
-            <option value="drift">Drift</option>
-            <option value="ses">SES (Level)</option>
-            <option value="holt">Holt (Trend + Level)</option>
-            <option value="arima">ARIMA</option>
+            <option value="auto">Auto (recommended)</option>
+            <option value="ensemble">Blended (balanced)</option>
+            <option value="seasonal_naive">Repeat last week</option>
+            <option value="drift">Trend line</option>
+            <option value="ses">Smooth level</option>
+            <option value="holt">Smooth trend</option>
+            <option value="arima">Advanced</option>
           </select>
         </div>
 
@@ -389,7 +389,7 @@ export default function ForecastIntelligence({ dailyData }) {
         </div>
 
         <div className="md:col-span-1">
-          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Stabilize variability</div>
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Smooth spikes</div>
           <select
             className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
             value={config.transform}
@@ -402,7 +402,7 @@ export default function ForecastIntelligence({ dailyData }) {
         </div>
 
         <div className="md:col-span-1">
-          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Range method</div>
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Range style</div>
           <select
             className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
             value={config.interval}
@@ -481,31 +481,31 @@ export default function ForecastIntelligence({ dailyData }) {
       <div className="bg-white border border-gray-200 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="font-bold text-gray-800 flex items-center gap-2">
-            <Activity size={18} className="text-gray-400" /> Forecast range
+            <Activity size={18} className="text-gray-400" /> Expected range
           </div>
           {result?.backtest?.metrics && (
             <div className="text-xs text-gray-500">
               Accuracy check ({result.backtest.window}d, lower is better):{" "}
               <span className="font-bold">
-                RMSE {isCountTarget ? formatNumber(result.backtest.metrics.rmse) : formatMoney(result.backtest.metrics.rmse)}
+                Error {isCountTarget ? formatNumber(result.backtest.metrics.rmse) : formatMoney(result.backtest.metrics.rmse)}
               </span>{" "}
-              • MAE{" "}
+              • Avg miss{" "}
               <span className="font-bold">
                 {isCountTarget ? formatNumber(result.backtest.metrics.mae) : formatMoney(result.backtest.metrics.mae)}
               </span>{" "}
-              • SMAPE{" "}
+              • Percent miss{" "}
               <span className="font-bold">
                 {Number(result.backtest.metrics.smape)?.toFixed?.(1) ?? "—"}%
               </span>{" "}
               {result.backtest.metrics.mase != null && (
                 <>
-                  • MASE <span className="font-bold">{formatStat(result.backtest.metrics.mase, 2)}</span>
+                  • Relative miss <span className="font-bold">{formatStat(result.backtest.metrics.mase, 2)}</span>
                 </>
               )}
               {result.analysis?.residualDiagnostics?.intervalCoverage != null && (
                 <>
                   {" "}
-                  • Coverage{" "}
+                  • Range hit{" "}
                   <span className="font-bold">
                     {formatPercent(result.analysis.residualDiagnostics.intervalCoverage, 0)}
                   </span>
@@ -557,17 +557,17 @@ export default function ForecastIntelligence({ dailyData }) {
         <div className="mt-6 bg-white border border-gray-200 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="font-bold text-gray-800">Forecast method comparison</div>
-            <div className="text-xs text-gray-500">Ranked by accuracy (lower error is better)</div>
+            <div className="text-xs text-gray-500">Ranked by accuracy (lower is better)</div>
           </div>
           <div className="overflow-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
                 <tr>
                   <th className="px-3 py-2">Method</th>
-                  <th className="px-3 py-2 text-right">Error (RMSE)</th>
-                  <th className="px-3 py-2 text-right">Avg error (MAE)</th>
-                  <th className="px-3 py-2 text-right">Percent error</th>
-                  <th className="px-3 py-2 text-right">Relative error</th>
+                  <th className="px-3 py-2 text-right">Error score</th>
+                  <th className="px-3 py-2 text-right">Avg miss</th>
+                  <th className="px-3 py-2 text-right">Percent miss</th>
+                  <th className="px-3 py-2 text-right">Relative miss</th>
                   <th className="px-3 py-2 text-right">Blend weight</th>
                 </tr>
               </thead>
@@ -621,7 +621,7 @@ export default function ForecastIntelligence({ dailyData }) {
                 {formatSignedValue(analysis.trend?.slopePerDay, isCountTarget)}
               </div>
               <div className="text-xs text-gray-500">
-                Fit score (R2) {formatStat(analysis.trend?.r2, 2)} • t {formatStat(analysis.trend?.tStat, 2)}
+                Fit score (0-1) {formatStat(analysis.trend?.r2, 2)} • Strength {formatStat(analysis.trend?.tStat, 2)}
               </div>
             </div>
 
@@ -708,21 +708,21 @@ export default function ForecastIntelligence({ dailyData }) {
               </div>
 
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                <div className="text-xs font-bold text-gray-500 uppercase mb-1">Error patterns</div>
+                <div className="text-xs font-bold text-gray-500 uppercase mb-1">Pattern check</div>
                 <div className="text-lg font-extrabold text-gray-900">
                   {formatStat(analysis.residualDiagnostics.durbinWatson, 2)}
                 </div>
                 <div className="text-xs text-gray-500">
-                  Ljung-Box Q {formatStat(analysis.residualDiagnostics.ljungBoxQ, 1)}
+                  Pattern score {formatStat(analysis.residualDiagnostics.ljungBoxQ, 1)}
                 </div>
               </div>
 
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                <div className="text-xs font-bold text-gray-500 uppercase mb-1">Error shape</div>
+                <div className="text-xs font-bold text-gray-500 uppercase mb-1">Distribution check</div>
                 <div className="text-lg font-extrabold text-gray-900">
                   {formatStat(analysis.residualDiagnostics.jarqueBera, 2)}
                 </div>
-                <div className="text-xs text-gray-500">Normality check</div>
+                <div className="text-xs text-gray-500">Consistency score</div>
               </div>
 
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">

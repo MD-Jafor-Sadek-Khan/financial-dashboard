@@ -38,9 +38,9 @@ function App() {
 
   // 3. Prepare Chart Data
   const chartData = [
-    { name: 'N8n Workflow', value: n8nCost },
-    { name: 'OpenAI Intelligence', value: openAICost },
-    { name: 'Pinecone Memory', value: pineconeCost },
+    { name: 'Automation platform (N8n)', value: n8nCost },
+    { name: 'AI model usage (OpenAI)', value: openAICost },
+    { name: 'Memory store (Pinecone)', value: pineconeCost },
   ].filter(item => item.value > 0);
 
   // Helper for formatting currency
@@ -58,10 +58,10 @@ function App() {
 
     const rows = [
       ['Category', 'Item', 'Detail', 'Monthly Cost'],
-      ['N8n', n8nData.plan, `${n8nData.duration} billing`, n8nCost.toFixed(2)],
-      ['Pinecone', pineconeData.plan, `${pineconeData.storageGB}GB / ${pineconeData.readUnits} RUs`, pineconeCost.toFixed(2)],
+      ['Automation platform (N8n)', n8nData.plan, `${n8nData.duration} billing`, n8nCost.toFixed(2)],
+      ['Memory store (Pinecone)', pineconeData.plan, `${pineconeData.storageGB}GB / ${pineconeData.readUnits} read units`, pineconeCost.toFixed(2)],
       ...aiNodes.map(node => [
-        'OpenAI',
+        'AI model usage (OpenAI)',
         node.name,
         `${node.model} (${node.executionsPerDay} runs/day)`,
         // Re-calc row cost logic for CSV consistency
@@ -159,9 +159,9 @@ function App() {
             <div className="glass-card p-6 rounded-xl border border-gray-200 sticky top-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <PieIcon size={20} className="text-gray-400" /> Cost Breakdown
+                  <PieIcon size={20} className="text-gray-400" /> Monthly cost breakdown
                 </h2>
-                <button onClick={handleExport} className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors" title="Export Forecast CSV">
+                <button onClick={handleExport} className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors" title="Download cost report">
                   <Download size={18} />
                 </button>
               </div>
@@ -190,13 +190,13 @@ function App() {
               {/* Grand Total Card */}
               <div className="pt-6 border-t border-dashed border-gray-200 text-center">
                 <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Projected Monthly OpEx
+                  Estimated monthly total
                 </div>
                 <div className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-500 mt-2 pb-1">
                   {formatCurrency(grandTotal)}
                 </div>
                 <div className="text-xs text-gray-400 mt-3 font-medium bg-gray-50 inline-block px-3 py-1 rounded-full border border-gray-100">
-                  *Calculated based on {getDaysInCurrentMonth()} calendar days
+                  Based on {getDaysInCurrentMonth()} calendar days
                 </div>
               </div>
             </div>
@@ -217,8 +217,8 @@ function App() {
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Financial & Operational Impact Dashboard</h1>
-            <p className="text-slate-500 mt-1">Real-time cost modeling & usage analytics</p>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">AI Spend & Operations Overview</h1>
+            <p className="text-slate-500 mt-1">A clear view of spend, usage, and trends</p>
           </div>
           <div className="flex gap-3">
             <div className="glass-card px-4 py-2 rounded-lg shadow-sm text-sm font-medium flex items-center min-w-[140px] justify-center border border-gray-200">
@@ -226,14 +226,14 @@ function App() {
               {status}
             </div>
 
-            <button onClick={loadData} className="p-2 glass-card rounded-lg shadow-sm border border-gray-200 hover:bg-white text-gray-700 transition-all" title="Refresh from DB">
+            <button onClick={loadData} className="p-2 glass-card rounded-lg shadow-sm border border-gray-200 hover:bg-white text-gray-700 transition-all" title="Refresh data">
               <RefreshCw size={20} />
             </button>
             <button onClick={() => setIsSettingsOpen(true)} className="p-2 glass-card rounded-lg shadow-sm border border-gray-200 hover:bg-white text-gray-700 transition-all">
               <Settings size={20} />
             </button>
             <button onClick={() => handleSave(false)} className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-md hover:bg-slate-800 transition-all active:scale-95">
-              <Save size={18} /> Save Session
+              <Save size={18} /> Save changes
             </button>
           </div>
         </header>
@@ -244,19 +244,19 @@ function App() {
             onClick={() => setActiveTab('analytics')}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'analytics' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
           >
-            <BarChart2 size={18} /> Daily Analytics
+            <BarChart2 size={18} /> Daily spend
           </button>
           <button
             onClick={() => setActiveTab('calculator')}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'calculator' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
           >
-            <Calculator size={18} /> Forecast Calculator
+            <Calculator size={18} /> Budget planner
           </button>
           <button
             onClick={() => setActiveTab('generator')}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'generator' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
           >
-            <Database size={18} /> Test Data Generator
+            <Database size={18} /> Sample data
           </button>
         </div>
 

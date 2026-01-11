@@ -59,8 +59,8 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
                 {/* Header */}
                 <div className="flex justify-between items-center p-6 border-b shrink-0 bg-white">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-900">Global Pricing Configuration</h2>
-                        <p className="text-sm text-gray-500">Update the base rates used for all calculations.</p>
+                        <h2 className="text-xl font-bold text-gray-900">Pricing assumptions</h2>
+                        <p className="text-sm text-gray-500">Update the rates used to estimate costs.</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={20} /></button>
                 </div>
@@ -71,19 +71,19 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
                         onClick={() => setActiveTab('openai')}
                         className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'openai' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                     >
-                        <Zap size={18} /> OpenAI Intelligence
+                        <Zap size={18} /> AI models (OpenAI)
                     </button>
                     <button
                         onClick={() => setActiveTab('n8n')}
                         className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'n8n' ? 'border-orange-600 text-orange-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                     >
-                        <Cpu size={18} /> N8n Infrastructure
+                        <Cpu size={18} /> Automation platform (N8n)
                     </button>
                     <button
                         onClick={() => setActiveTab('pinecone')}
                         className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'pinecone' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                     >
-                        <Database size={18} /> Pinecone Memory
+                        <Database size={18} /> Memory store (Pinecone)
                     </button>
                 </div>
 
@@ -93,11 +93,14 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
                     {/* --- OPENAI TAB --- */}
                     {activeTab === 'openai' && (
                         <div>
+                            <div className="text-xs text-gray-500 mb-3">
+                                Rates are per 1M text units.
+                            </div>
                             <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-4 mb-2 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                <div>Model Name</div>
-                                <div>Input ($)</div>
-                                <div className="text-blue-600">Cached ($)</div>
-                                <div>Output ($)</div>
+                                <div>Model</div>
+                                <div>Input rate</div>
+                                <div className="text-blue-600">Cached rate</div>
+                                <div>Output rate</div>
                             </div>
                             <div className="space-y-2">
                                 {Object.entries(tempPricing.openai).map(([key, data]) => (
@@ -138,29 +141,29 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
                                     </h3>
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Monthly Price ($)</label>
-                                            <input
-                                                type="number"
-                                                className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
-                                                value={planData.price}
-                                                onChange={(e) => handleN8nChange(planKey, 'price', e.target.value)}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Included Executions</label>
-                                            <input
-                                                type="number"
-                                                className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
-                                                value={planData.limit}
-                                                onChange={(e) => handleN8nChange(planKey, 'limit', e.target.value)}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Yearly Discount (0-1)</label>
-                                            <input
-                                                type="number" step="0.01" max="1"
-                                                className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
-                                                value={planData.yearlyDiscountPercent}
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Monthly price</label>
+                                        <input
+                                            type="number"
+                                            className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                                            value={planData.price}
+                                            onChange={(e) => handleN8nChange(planKey, 'price', e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Included runs</label>
+                                        <input
+                                            type="number"
+                                            className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                                            value={planData.limit}
+                                            onChange={(e) => handleN8nChange(planKey, 'limit', e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Annual discount (0-1)</label>
+                                        <input
+                                            type="number" step="0.01" max="1"
+                                            className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                                            value={planData.yearlyDiscountPercent}
                                                 onChange={(e) => handleN8nChange(planKey, 'yearlyDiscountPercent', e.target.value)}
                                             />
                                             <div className="text-xs text-gray-400 mt-1">
@@ -178,10 +181,10 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
                         <div className="space-y-6">
                             {/* Usage Rates */}
                             <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                                <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">Serverless Usage Rates</h3>
+                                <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">Usage rates</h3>
                                 <div className="grid grid-cols-3 gap-6">
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Storage ($ per GB/mo)</label>
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Storage ($ per GB/month)</label>
                                         <input
                                             type="number" step="0.01"
                                             className="border rounded w-full p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -212,13 +215,13 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
 
                             {/* Plan Minimums */}
                             <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                                <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">Plan Base Fees / Minimums</h3>
+                                <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">Plan minimums</h3>
                                 <div className="space-y-4">
                                     {Object.entries(tempPricing.pinecone.plans).map(([planKey, planData]) => (
                                         <div key={planKey} className="flex items-center justify-between">
                                             <span className="text-sm font-medium text-gray-700">{planData.label}</span>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm text-gray-500">Min Monthly Cost: $</span>
+                                                <span className="text-sm text-gray-500">Minimum monthly: $</span>
                                                 <input
                                                     type="number"
                                                     className="border rounded w-32 p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -238,7 +241,7 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
                 {/* Footer Actions */}
                 <div className="p-4 border-t bg-white shrink-0">
                     <button onClick={save} className="w-full bg-slate-900 text-white py-3 rounded-lg hover:bg-slate-800 flex items-center justify-center gap-2 font-bold shadow-md transition-all active:scale-[0.99]">
-                        <Save size={18} /> Save Global Settings
+                        <Save size={18} /> Save pricing
                     </button>
                 </div>
             </div>

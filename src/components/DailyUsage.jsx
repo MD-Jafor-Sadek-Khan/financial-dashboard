@@ -530,10 +530,10 @@ export default function DailyUsage({ pricing = {} }) {
                             <UploadCloud size={48} className="text-indigo-600" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-gray-800">Upload AI Usage Report</h3>
+                            <h3 className="text-xl font-bold text-gray-800">Upload usage report</h3>
                             <p className="text-gray-500 mt-2">
-                                Optimized for large exports (1M+ rows).<br />
-                                <span className="font-bold text-indigo-600">Please upload CSV files only.</span>
+                                Supports large files (1M+ rows).<br />
+                                <span className="font-bold text-indigo-600">Please upload a CSV file.</span>
                             </p>
                         </div>
                     </label>
@@ -721,7 +721,7 @@ export default function DailyUsage({ pricing = {} }) {
                         {/* Daily Trend */}
                         <div className="lg:col-span-2 glass-card p-6 rounded-lg">
                             <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
-                                <TrendingUp size={18} className="text-gray-400" /> Daily AI spend
+                                <TrendingUp size={18} className="text-gray-400" /> Daily spend
                             </h3>
                             <p className="text-xs text-gray-500 -mt-4 mb-4">
                                 Bars show actual daily spend. Lines show forecast and expected range.
@@ -838,7 +838,7 @@ export default function DailyUsage({ pricing = {} }) {
                                         <SortHeader tableKey="user" colKey="name" label="Person" />
                                         <SortHeader tableKey="user" colKey="department" label="Department" />
                                         <SortHeader tableKey="user" colKey="uniqueExecutions" label="Runs" align="right" />
-                                        <SortHeader tableKey="user" colKey="tokens" label="Usage volume (tokens)" align="right" />
+                                        <SortHeader tableKey="user" colKey="tokens" label="Usage volume (text units)" align="right" />
                                         <SortHeader tableKey="user" colKey="cost" label="Spend" align="right" />
                                     </tr>
                                 </thead>
@@ -890,7 +890,7 @@ export default function DailyUsage({ pricing = {} }) {
                             </table>
                         </div>
                         <div className="text-xs text-gray-500 mt-2">
-                            Workflow steps are the AI nodes inside your automations.
+                            Workflow steps are the AI actions inside your automations.
                         </div>
                     </div>
                     <ForecastIntelligence dailyData={stats.dailyData} />

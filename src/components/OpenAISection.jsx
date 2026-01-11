@@ -62,7 +62,7 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
                     <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
                         <Zap size={20} />
                     </div>
-                    <h2 className="text-lg font-bold text-gray-800">2. OpenAI Intelligence</h2>
+                    <h2 className="text-lg font-bold text-gray-800">2. AI model usage (OpenAI)</h2>
                 </div>
                 
                 <div className="flex items-center gap-3">
@@ -72,7 +72,7 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
                             onChange={(e) => bulkUpdateModel(e.target.value)}
                             value=""
                         >
-                            <option value="" disabled>Bulk Change Model</option>
+                            <option value="" disabled>Change model for all</option>
                             {Object.entries(pricing.openai).map(([key, val]) => (
                                  <option key={key} value={key}>{val.label}</option>
                             ))}
@@ -81,7 +81,7 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
                     </div>
 
                     <button onClick={addNode} className="flex items-center gap-1.5 text-xs font-bold bg-indigo-50 text-indigo-600 px-3 py-2 rounded-lg hover:bg-indigo-100 transition-colors">
-                        <PlusCircle size={14} /> ADD WORKFLOW
+                        <PlusCircle size={14} /> Add workflow
                     </button>
                 </div>
             </div>
@@ -90,13 +90,13 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
                 <table className="w-full text-sm text-left border-collapse">
                     <thead className="bg-gray-50/80">
                         <tr>
-                            <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/4">Workflow Name</th>
-                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Model</th>
-                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">In Tks</th>
-                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Out Tks</th>
-                            <th className="py-3 px-2 text-xs font-bold text-blue-600 uppercase tracking-wider text-center">Cache %</th>
-                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center bg-gray-100/50">Runs/Day</th>
-                            <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Est. Monthly</th>
+                            <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/4">Workflow</th>
+                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider">AI model</th>
+                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Text in</th>
+                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Text out</th>
+                            <th className="py-3 px-2 text-xs font-bold text-blue-600 uppercase tracking-wider text-center">Reuse %</th>
+                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center bg-gray-100/50">Runs/day</th>
+                            <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Est. monthly spend</th>
                             <th className="py-3 px-2 w-10"></th>
                         </tr>
                     </thead>
@@ -162,17 +162,20 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
                     </tbody>
                 </table>
             </div>
+            <div className="mt-2 text-xs text-gray-500">
+                Text in/out are measured in text units (tokens). Higher values generally mean higher cost.
+            </div>
 
             {/* Footer Summary */}
             <div className="mt-6 bg-gray-50/50 border border-gray-100 p-4 rounded-xl flex justify-between items-center">
                 <div>
-                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Total Throughput</div>
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Total runs</div>
                     <div className="text-lg font-bold text-gray-800">
-                        {totalMonthlyExecutions.toLocaleString()} <span className="text-sm font-normal text-gray-400">runs / month</span>
+                        {totalMonthlyExecutions.toLocaleString()} <span className="text-sm font-normal text-gray-400">runs per month</span>
                     </div>
                 </div>
                 <div className="text-right">
-                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Monthly AI Cost</div>
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Monthly AI spend</div>
                     <div className="text-2xl font-extrabold text-gray-900">${calculatedCost.toFixed(2)}</div>
                 </div>
             </div>

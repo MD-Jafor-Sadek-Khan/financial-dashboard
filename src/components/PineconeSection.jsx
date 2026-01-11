@@ -20,12 +20,12 @@ export default function PineconeSection({ data, setData, pricing, calculatedCost
           <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
               <Database size={20} />
           </div>
-          <h2 className="text-lg font-bold text-gray-800">3. Pinecone Memory (Vector DB)</h2>
+          <h2 className="text-lg font-bold text-gray-800">3. Memory store (Pinecone)</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div className="md:col-span-1">
-            <label className={labelClass}>Plan Tier</label>
+            <label className={labelClass}>Plan</label>
             <select 
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white/50 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
                 value={plan} 
@@ -51,7 +51,7 @@ export default function PineconeSection({ data, setData, pricing, calculatedCost
         </div>
 
         <div>
-            <label className={labelClass}>Read Units</label>
+            <label className={labelClass}>Read activity (units)</label>
             <div className="relative">
                 <ArrowUpCircle size={16} className={iconClass} />
                 <input 
@@ -64,7 +64,7 @@ export default function PineconeSection({ data, setData, pricing, calculatedCost
         </div>
 
         <div>
-            <label className={labelClass}>Write Units</label>
+            <label className={labelClass}>Write activity (units)</label>
             <div className="relative">
                 <ArrowDownCircle size={16} className={iconClass} />
                 <input 
@@ -79,15 +79,15 @@ export default function PineconeSection({ data, setData, pricing, calculatedCost
 
       <div className="bg-gray-50/50 border border-gray-100 p-4 rounded-xl flex justify-between items-center">
         <div>
-           <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Billing Details</div>
+           <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Billing summary</div>
            <div className="text-sm text-gray-600">
-              Raw Usage: <span className="font-mono">${rawUsageCost.toFixed(4)}</span>
+              Usage charges: <span className="font-mono">${rawUsageCost.toFixed(4)}</span>
               <span className="mx-2 text-gray-300">|</span>
-              Plan Floor: <span className="font-mono">${planDetails.min.toFixed(2)}</span>
+              Plan minimum: <span className="font-mono">${planDetails.min.toFixed(2)}</span>
            </div>
         </div>
         <div className="text-right">
-          <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Database Cost</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Monthly cost</div>
           <div className="text-2xl font-extrabold text-gray-900">${calculatedCost.toFixed(2)}</div>
         </div>
       </div>
