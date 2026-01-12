@@ -3443,6 +3443,7 @@ export const generateExcelReport = (rawData, filename = 'AI_Cost_Report.xlsx') =
     }
 
     // --- 2. DATA PROCESSING (Hierarchy Building) ---
+    // Grouping: Dept -> User -> Node
     const hierarchy = {};
 
     rawData.forEach(row => {
@@ -3478,7 +3479,7 @@ export const generateExcelReport = (rawData, filename = 'AI_Cost_Report.xlsx') =
     Object.keys(hierarchy).sort().forEach(deptName => {
         const deptData = hierarchy[deptName];
         
-        // We build the sheet cell by cell to control styles strictly
+        // We build the sheet cell by cell (AoA - Array of Arrays) to control styles strictly
         const wsData = [];
         
         let deptTotalCost = 0;
@@ -3487,7 +3488,7 @@ export const generateExcelReport = (rawData, filename = 'AI_Cost_Report.xlsx') =
         Object.keys(deptData).sort().forEach(userName => {
             const userNodes = deptData[userName];
 
-            // A. User Header Block
+            // A. User Header Block (Styled Row)
             wsData.push([
                 { v: `USER: ${userName.toUpperCase()}`, s: STYLES.userHeader }, 
                 { v: "", s: STYLES.userHeader }, 
@@ -3535,7 +3536,7 @@ export const generateExcelReport = (rawData, filename = 'AI_Cost_Report.xlsx') =
                 { v: userTotalCost, s: { ...STYLES.rowTotal, ...STYLES.currency } }
             ]);
 
-            // Spacing
+            // Spacing rows between users
             wsData.push([{}, {}, {}, {}, {}, {}]); 
             
             deptTotalCost += userTotalCost;
@@ -3564,15 +3565,12 @@ export const generateExcelReport = (rawData, filename = 'AI_Cost_Report.xlsx') =
             { wch: 18 }  // Cost
         ];
 
-        // Merge cells for visual flair (optional, but looks nice for headers)
-        // Note: Managing merges in a dynamic loop is complex, skipping for stability 
-        // but the colors will do the heavy lifting.
-
+        // Add Sheet to Workbook
         XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(deptName));
     });
 
     // --- 4. SUMMARY SHEET (Cover Page) ---
-    // We create a dashboard-style cover sheet
+    // We create a dashboard-style cover sheet as the first tab
     const summaryData = [];
     
     // Title
