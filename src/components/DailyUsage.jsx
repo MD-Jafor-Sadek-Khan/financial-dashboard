@@ -1,12 +1,13 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createSeriesCacheKey, getCachedForecast, setCachedForecast } from "../utils/forecastCache";
 import ForecastIntelligence from "./ForecastIntelligence";
+import { generateExcelReport } from '../utils/excelExport';
 
 import {
     UploadCloud, FileSpreadsheet, X,
     TrendingUp, Layers, Users, Server,
     Filter, Calendar, Search, ArrowUp, ArrowDown, ArrowUpDown,
-    Cpu
+    Cpu, Download
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -22,25 +23,22 @@ export default function DailyUsage({ pricing = {} }) {
     const [rowCount, setRowCount] = useState(0);
 
     // Filter & Data States
-    const rawDataRef = useRef([]); // Stores optimized raw rows
+    const rawDataRef = useRef([]);
     const [stats, setStats] = useState(null);
 
-    // Available options for filters (populated on load)
     const [availableOptions, setAvailableOptions] = useState({
         departments: [],
         models: []
     });
 
-    // Active Filters
     const [filters, setFilters] = useState({
-        dateRange: 'all', // '7', '30', 'all'
-        departments: [],  // Multi-select array
-        user: '',         // Search text
-        model: 'all',     // Dropdown
-        minCost: 0        // Slider
+        dateRange: 'all',
+        departments: [],
+        user: '',
+        model: 'all',
+        minCost: 0
     });
 
-    // Sort Configuration
     const [sortConfig, setSortConfig] = useState({
         daily: { key: 'date', direction: 'asc' },
         dept: { key: 'cost', direction: 'desc' },
@@ -48,16 +46,14 @@ export default function DailyUsage({ pricing = {} }) {
         node: { key: 'cost', direction: 'desc' }
     });
 
-
+    // --- FORECASTING STATE ---
     const forecastWorkerRef = useRef(null);
-
     const [forecastConfig, setForecastConfig] = useState({
         enabled: true,
         horizon: 14,
         confidence: 0.95,
         anomalyZ: 3.0,
     });
-
     const [forecastResult, setForecastResult] = useState(null);
     const [forecastError, setForecastError] = useState(null);
     const [forecastLoading, setForecastLoading] = useState(false);
@@ -67,7 +63,6 @@ export default function DailyUsage({ pricing = {} }) {
             new URL("../workers/forecastWorker.js", import.meta.url),
             { type: "module" }
         );
-
         return () => {
             forecastWorkerRef.current?.terminate();
             forecastWorkerRef.current = null;
@@ -102,11 +97,9 @@ export default function DailyUsage({ pricing = {} }) {
             }
 
             const requestId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-
             const handleMessage = async (event) => {
                 const payload = event.data;
                 if (!payload || payload.requestId !== requestId) return;
-
                 forecastWorkerRef.current?.removeEventListener("message", handleMessage);
 
                 if (payload.error) {
@@ -122,7 +115,6 @@ export default function DailyUsage({ pricing = {} }) {
             };
 
             forecastWorkerRef.current.addEventListener("message", handleMessage);
-
             forecastWorkerRef.current.postMessage({
                 requestId,
                 dates,
@@ -132,7 +124,6 @@ export default function DailyUsage({ pricing = {} }) {
                 anomalyZ: forecastConfig.anomalyZ,
             });
         };
-
         runForecast();
     }, [stats, forecastConfig.enabled, forecastConfig.horizon, forecastConfig.confidence, forecastConfig.anomalyZ]);
 
@@ -143,7 +134,6 @@ export default function DailyUsage({ pricing = {} }) {
         const base = stats.dailyData.map((d, i) => ({
             date: d.date,
             actualCost: d.cost,
-            // Keep existing fields if you want (cumulativeCost etc.)
             cumulativeCost: d.cumulativeCost,
             modelCost: shouldShowForecast ? forecastResult?.fitted?.[i] ?? null : null,
         }));
@@ -173,7 +163,8 @@ export default function DailyUsage({ pricing = {} }) {
     }, [forecastConfig.enabled]);
 
 
-    // Helper: Sort Function
+    // --- DATA PROCESSING LOGIC ---
+
     const getSortedData = (data, tableKey) => {
         const config = sortConfig[tableKey];
         if (!data || !config) return data;
@@ -181,17 +172,14 @@ export default function DailyUsage({ pricing = {} }) {
         return [...data].sort((a, b) => {
             let aVal = a[config.key];
             let bVal = b[config.key];
-
             if (typeof aVal === 'string') aVal = aVal.toLowerCase();
             if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-
             if (aVal < bVal) return config.direction === 'asc' ? -1 : 1;
             if (aVal > bVal) return config.direction === 'asc' ? 1 : -1;
             return 0;
         });
     };
 
-    // Helper: Toggle Sort
     const handleSort = (key, table) => {
         setSortConfig(prev => ({
             ...prev,
@@ -203,10 +191,8 @@ export default function DailyUsage({ pricing = {} }) {
     };
 
     const optimizeRow = (row, pricing) => {
-        // Guard against missing pricing data
         if (!pricing || !pricing.openai) return null;
 
-        // Safe Key Finding
         const findKey = (obj, target) => Object.keys(obj).find(k => k.toLowerCase().trim() === target.toLowerCase().trim());
 
         const modelRaw = row[findKey(row, 'Model')] || 'unknown';
@@ -220,9 +206,7 @@ export default function DailyUsage({ pricing = {} }) {
         const output = parseFloat(row[findKey(row, 'Output Tokens')] || 0);
         const cached = parseFloat(row[findKey(row, 'Cached Tokens')] || row[findKey(row, 'Cache')] || 0);
 
-        // Calculate Cost
         let modelPriceKey = Object.keys(pricing.openai).find(k => modelRaw.includes(k));
-        // Fallback to default if model not found
         const rates = (modelPriceKey && pricing.openai[modelPriceKey]) || { input: 0, output: 0, cached: 0 };
         const freshInput = Math.max(0, input - cached);
 
@@ -232,16 +216,17 @@ export default function DailyUsage({ pricing = {} }) {
 
         const dateObj = timeStr ? new Date(timeStr) : new Date();
 
-        // Return Minified Object for Memory Efficiency
         return {
             id: executionId,
-            ts: dateObj.getTime(), // Timestamp for fast date filtering
+            ts: dateObj.getTime(),
             date: dateObj.toISOString().split('T')[0],
             dpt: department,
             usr: user,
             mdl: modelRaw,
             nd: nodeName.trim(),
             c: cost,
+            ti: input,    // Added: Total Input
+            to: output,   // Added: Total Output
             t: input + output
         };
     };
@@ -250,9 +235,8 @@ export default function DailyUsage({ pricing = {} }) {
         const file = e.target.files[0];
         if (!file) return;
 
-        // Check if pricing is loaded
         if (!pricing || !pricing.openai) {
-            setError("Pricing configuration is missing. Please verify settings.");
+            setError("Pricing configuration is missing.");
             return;
         }
 
@@ -260,17 +244,14 @@ export default function DailyUsage({ pricing = {} }) {
         setProcessing(true);
         setError(null);
         setRowCount(0);
-        rawDataRef.current = []; // Clear previous data
+        rawDataRef.current = [];
 
-        // Temporary Sets for filter population
         const depts = new Set();
         const models = new Set();
-
         const reader = new FileReader();
 
         reader.onload = (event) => {
             const text = event.target.result;
-            // Split by newline
             const lines = text.split('\n');
 
             if (lines.length === 0) {
@@ -279,37 +260,25 @@ export default function DailyUsage({ pricing = {} }) {
                 return;
             }
 
-            // Parse Headers
             const headers = lines[0].split(',').map(h => h.trim());
-
             let processedCount = 0;
-            let currentIndex = 1; // Skip header
+            let currentIndex = 1;
             const totalLines = lines.length;
-            const CHUNK_SIZE = 5000; // Process in chunks to avoid freezing UI
+            const CHUNK_SIZE = 5000;
 
-            // Custom Parsing Loop
             const processChunk = () => {
                 const chunkEnd = Math.min(currentIndex + CHUNK_SIZE, totalLines);
-
                 for (let i = currentIndex; i < chunkEnd; i++) {
                     const line = lines[i];
                     if (!line || !line.trim()) continue;
-
-                    // Simple split (handles standard CSVs)
                     const values = line.split(',');
                     const row = {};
                     headers.forEach((h, idx) => {
-                        // Strip quotes if present
                         let val = values[idx] || '';
-                        if (val.startsWith('"') && val.endsWith('"')) {
-                            val = val.slice(1, -1);
-                        }
+                        if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
                         row[h] = val.trim();
                     });
-
                     processedCount++;
-
-                    // Optimize Row immediately
                     const processedRow = optimizeRow(row, pricing);
                     if (processedRow) {
                         rawDataRef.current.push(processedRow);
@@ -317,44 +286,35 @@ export default function DailyUsage({ pricing = {} }) {
                         if (processedRow.mdl) models.add(processedRow.mdl);
                     }
                 }
-
                 currentIndex = chunkEnd;
                 setRowCount(processedCount);
 
                 if (currentIndex < totalLines) {
-                    // Schedule next chunk
                     setTimeout(processChunk, 0);
                 } else {
-                    // All Done
                     setAvailableOptions({
                         departments: Array.from(depts).sort(),
                         models: Array.from(models).sort()
                     });
-
-                    recalculateStats(); // Initial calculation
+                    recalculateStats();
                     setProcessing(false);
                 }
             };
-
-            // Start processing
             processChunk();
         };
 
         reader.onerror = () => {
-            console.error(reader.error);
             setError("Failed to read file.");
             setProcessing(false);
         };
-
         reader.readAsText(file);
     };
 
-    // The heavy lifter: Aggregates filtered data
-    const recalculateStats = () => {
+    // --- REUSABLE FILTER LOGIC ---
+    const getFilteredRows = () => {
         const allRows = rawDataRef.current;
-        if (allRows.length === 0) return;
+        if (allRows.length === 0) return [];
 
-        // 1. Filter
         const now = new Date();
         let cutoffTime = 0;
         if (filters.dateRange === '7') cutoffTime = now.getTime() - (7 * 24 * 60 * 60 * 1000);
@@ -363,7 +323,7 @@ export default function DailyUsage({ pricing = {} }) {
         const activeDepts = new Set(filters.departments);
         const searchUser = filters.user.toLowerCase();
 
-        const filteredRows = allRows.filter(r => {
+        return allRows.filter(r => {
             if (cutoffTime > 0 && r.ts < cutoffTime) return false;
             if (filters.departments.length > 0 && !activeDepts.has(r.dpt)) return false;
             if (filters.model !== 'all' && r.mdl !== filters.model) return false;
@@ -371,11 +331,30 @@ export default function DailyUsage({ pricing = {} }) {
             if (searchUser && !r.usr.toLowerCase().includes(searchUser)) return false;
             return true;
         });
+    };
 
-        // 2. Aggregate
+    const handleExportReport = () => {
+        const rowsToExport = getFilteredRows();
+
+        if (rowsToExport.length === 0) {
+            alert("No data found matching current filters to export.");
+            return;
+        }
+
+        const dateStr = new Date().toISOString().slice(0, 10);
+        generateExcelReport(rowsToExport, `AI_Spend_By_Dept_${dateStr}.xlsx`);
+    };
+
+    const recalculateStats = () => {
+        const filteredRows = getFilteredRows();
+        if (filteredRows.length === 0) return;
+
+        // Expanded Aggregation Structure
         const tempStats = {
             totalCost: 0,
             totalTokens: 0,
+            totalInputTokens: 0,
+            totalOutputTokens: 0,
             uniqueExecutions: new Set(),
             dailyMap: {},
             deptMap: {},
@@ -383,12 +362,14 @@ export default function DailyUsage({ pricing = {} }) {
             nodeMap: {}
         };
 
-        // Determine date range for average calculations
         const uniqueDates = new Set();
 
         filteredRows.forEach(r => {
             tempStats.totalCost += r.c;
             tempStats.totalTokens += r.t;
+            tempStats.totalInputTokens += r.ti;
+            tempStats.totalOutputTokens += r.to;
+
             if (r.id) tempStats.uniqueExecutions.add(r.id);
             uniqueDates.add(r.date);
 
@@ -397,28 +378,33 @@ export default function DailyUsage({ pricing = {} }) {
             tempStats.dailyMap[r.date].cost += r.c;
             tempStats.dailyMap[r.date].executionIds.add(r.id);
 
-            // Dept
-            if (!tempStats.deptMap[r.dpt]) tempStats.deptMap[r.dpt] = { cost: 0, tokens: 0, executionIds: new Set() };
+            // Dept - Adding Token Splits
+            if (!tempStats.deptMap[r.dpt]) tempStats.deptMap[r.dpt] = { cost: 0, inputTokens: 0, outputTokens: 0, executionIds: new Set() };
             tempStats.deptMap[r.dpt].cost += r.c;
+            tempStats.deptMap[r.dpt].inputTokens += r.ti;
+            tempStats.deptMap[r.dpt].outputTokens += r.to;
             tempStats.deptMap[r.dpt].executionIds.add(r.id);
 
-            // User
-            if (!tempStats.userMap[r.usr]) tempStats.userMap[r.usr] = { cost: 0, tokens: 0, department: r.dpt, executionIds: new Set() };
+            // User - Adding Token Splits
+            if (!tempStats.userMap[r.usr]) tempStats.userMap[r.usr] = { cost: 0, tokens: 0, inputTokens: 0, outputTokens: 0, department: r.dpt, executionIds: new Set() };
             tempStats.userMap[r.usr].cost += r.c;
             tempStats.userMap[r.usr].tokens += r.t;
+            tempStats.userMap[r.usr].inputTokens += r.ti;
+            tempStats.userMap[r.usr].outputTokens += r.to;
             tempStats.userMap[r.usr].executionIds.add(r.id);
 
-            // Node
+            // Node - Adding Token Splits
             const nodeKey = `${r.nd} (${r.mdl})`;
-            if (!tempStats.nodeMap[nodeKey]) tempStats.nodeMap[nodeKey] = { name: r.nd, model: r.mdl, cost: 0, rowCount: 0 };
+            if (!tempStats.nodeMap[nodeKey]) tempStats.nodeMap[nodeKey] = { name: r.nd, model: r.mdl, cost: 0, inputTokens: 0, outputTokens: 0, rowCount: 0 };
             tempStats.nodeMap[nodeKey].cost += r.c;
+            tempStats.nodeMap[nodeKey].inputTokens += r.ti;
+            tempStats.nodeMap[nodeKey].outputTokens += r.to;
             tempStats.nodeMap[nodeKey].rowCount += 1;
         });
 
         const dayCount = uniqueDates.size || 1;
-
-        // 3. Flatten for Charts/Tables
         let runningTotal = 0;
+
         const dailyData = Object.entries(tempStats.dailyMap)
             .sort((a, b) => new Date(a[0]) - new Date(b[0]))
             .map(([date, data]) => {
@@ -435,6 +421,8 @@ export default function DailyUsage({ pricing = {} }) {
             .map(([name, data]) => ({
                 name,
                 cost: data.cost,
+                inputTokens: data.inputTokens,
+                outputTokens: data.outputTokens,
                 pct: (data.cost / tempStats.totalCost) * 100,
                 uniqueExecutions: data.executionIds.size,
                 avgDaily: data.cost / dayCount
@@ -445,17 +433,19 @@ export default function DailyUsage({ pricing = {} }) {
                 name,
                 cost: data.cost,
                 tokens: data.tokens,
+                inputTokens: data.inputTokens,
+                outputTokens: data.outputTokens,
                 department: data.department,
                 uniqueExecutions: data.executionIds.size
             }));
-        // Sort later in UI
 
         const nodeData = Object.values(tempStats.nodeMap);
-        // Sort later in UI
 
         setStats({
             totalCost: tempStats.totalCost,
             totalTokens: tempStats.totalTokens,
+            totalInputTokens: tempStats.totalInputTokens,
+            totalOutputTokens: tempStats.totalOutputTokens,
             totalUniqueExecutions: tempStats.uniqueExecutions.size,
             dailyData,
             departmentData,
@@ -464,10 +454,8 @@ export default function DailyUsage({ pricing = {} }) {
         });
     };
 
-    // Effect: Trigger recalculation when filters change
     useEffect(() => {
         if (rawDataRef.current.length > 0) {
-            // Debounce for performance if dragging slider
             const timer = setTimeout(() => {
                 recalculateStats();
             }, 100);
@@ -490,7 +478,6 @@ export default function DailyUsage({ pricing = {} }) {
         });
     };
 
-    // Helper Component for Sort Headers
     const SortHeader = ({ label, tableKey, colKey, align = 'left' }) => {
         const isActive = sortConfig[tableKey].key === colKey;
         return (
@@ -513,7 +500,6 @@ export default function DailyUsage({ pricing = {} }) {
         );
     };
 
-    // Derived sorted data for tables
     const sortedDeptData = useMemo(() => getSortedData(stats?.departmentData, 'dept'), [stats, sortConfig.dept]);
     const sortedUserData = useMemo(() => getSortedData(stats?.userData, 'user')?.slice(0, 100), [stats, sortConfig.user]);
     const sortedNodeData = useMemo(() => getSortedData(stats?.nodeData, 'node')?.slice(0, 50), [stats, sortConfig.node]);
@@ -567,15 +553,25 @@ export default function DailyUsage({ pricing = {} }) {
                                 <p className="text-xs text-gray-500">{rowCount.toLocaleString()} records processed</p>
                             </div>
                         </div>
-                        <button
-                            onClick={handleReset}
-                            className="text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                        >
-                            <X size={16} /> Reset Data
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {/* --- EXPORT BUTTON --- */}
+                            <button
+                                onClick={handleExportReport}
+                                className="text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 shadow-sm"
+                            >
+                                <Download size={16} /> Download report
+                            </button>
+                            {/* ------------------------- */}
+                            <button
+                                onClick={handleReset}
+                                className="text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                            >
+                                <X size={16} /> Reset Data
+                            </button>
+                        </div>
                     </div>
 
-                    {/* FILTER BAR - New Feature */}
+                    {/* FILTER BAR */}
                     <div className="glass-card p-4 rounded-lg flex flex-col lg:flex-row gap-4 items-center justify-between border-l-4 border-indigo-500">
                         <div className="flex items-center gap-2 text-indigo-900 font-bold shrink-0">
                             <Filter size={20} /> Refine view
@@ -596,7 +592,7 @@ export default function DailyUsage({ pricing = {} }) {
                                 </select>
                             </div>
 
-                            {/* Department - Multi-select Simulation via Dropdown */}
+                            {/* Department */}
                             <div className="relative">
                                 <Layers size={16} className="absolute left-3 top-2.5 text-gray-400" />
                                 <select
@@ -612,12 +608,6 @@ export default function DailyUsage({ pricing = {} }) {
                                         <option key={d} value={d}>{d}</option>
                                     ))}
                                 </select>
-
-                                {filters.departments.length > 0 && (
-                                    <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
-                                        {filters.departments.length}
-                                    </span>
-                                )}
                             </div>
 
                             {/* User Search */}
@@ -671,7 +661,9 @@ export default function DailyUsage({ pricing = {} }) {
                         <div className="glass-card p-6 rounded-lg border-l-4 border-emerald-500">
                             <p className="text-sm font-medium text-gray-500 mb-1">Usage volume (text units)</p>
                             <div className="text-3xl font-bold text-gray-900">{(stats.totalTokens / 1e6).toFixed(2)}M</div>
-                            <p className="text-xs text-gray-400 mt-1">Higher volume usually means higher cost</p>
+                            <p className="text-xs text-gray-400 mt-1">
+                                {(stats.totalInputTokens / 1e6).toFixed(2)}M in / {(stats.totalOutputTokens / 1e6).toFixed(2)}M out
+                            </p>
                         </div>
                         <div className="glass-card p-6 rounded-lg border-l-4 border-blue-500">
                             <p className="text-sm font-medium text-gray-500 mb-1">Automation runs</p>
@@ -689,19 +681,15 @@ export default function DailyUsage({ pricing = {} }) {
                             />
                             Show spend forecast
                         </label>
-
                         <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-600">Days ahead</span>
                             <input
-                                type="number"
-                                min="1"
-                                max="365"
+                                type="number" min="1" max="365"
                                 value={forecastConfig.horizon}
                                 onChange={(e) => setForecastConfig((p) => ({ ...p, horizon: Number(e.target.value) || 14 }))}
                                 className="w-20 px-2 py-1 border border-gray-200 rounded"
                             />
                         </div>
-
                         <select
                             value={forecastConfig.confidence}
                             onChange={(e) => setForecastConfig((p) => ({ ...p, confidence: Number(e.target.value) }))}
@@ -710,22 +698,16 @@ export default function DailyUsage({ pricing = {} }) {
                             <option value={0.95}>95% range</option>
                             <option value={0.99}>99% range</option>
                         </select>
-
                         {forecastLoading && <span className="text-xs text-gray-400">Forecasting…</span>}
                         {forecastError && <span className="text-xs text-red-600">{forecastError}</span>}
                     </div>
 
-
                     {/* Main Charts Row */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Daily Trend */}
                         <div className="lg:col-span-2 glass-card p-6 rounded-lg">
                             <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
                                 <TrendingUp size={18} className="text-gray-400" /> Daily spend
                             </h3>
-                            <p className="text-xs text-gray-500 -mt-4 mb-4">
-                                Bars show actual daily spend. Lines show forecast and expected range.
-                            </p>
                             <div className="h-72">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <ComposedChart data={trendData}>
@@ -733,21 +715,7 @@ export default function DailyUsage({ pricing = {} }) {
                                         <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                                         <YAxis yAxisId="left" orientation="left" tickFormatter={(v) => `$${v}`} />
                                         <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `$${v}`} />
-                                        <Tooltip
-                                            formatter={(value, name) => {
-                                                if (value == null || Number.isNaN(Number(value))) return ["—", name];
-                                                const num = Number(value);
-                                                const label =
-                                                    name === "cumulativeCost" ? "Total to date" :
-                                                        name === "actualCost" ? "Daily spend" :
-                                                            name === "modelCost" ? "Forecast" :
-                                                                name === "ciUpper" ? "High estimate" :
-                                                                    name === "ciLower" ? "Low estimate" :
-                                                                        name;
-                                                return [`$${num.toFixed(2)}`, label];
-                                            }}
-                                        />
-
+                                        <Tooltip formatter={(value, name) => [name.includes('Cost') || name.includes('estimate') ? `$${Number(value).toFixed(2)}` : value, name]} />
                                         <Legend />
                                         <Bar yAxisId="left" dataKey="actualCost" name="Daily spend" fill="#6366f1" radius={[4, 4, 0, 0]} />
                                         {showForecast && (
@@ -757,22 +725,15 @@ export default function DailyUsage({ pricing = {} }) {
                                                 <Line yAxisId="left" type="monotone" dataKey="ciLower" name="Low estimate" strokeDasharray="4 4" dot={false} />
                                             </>
                                         )}
-
-                                        {/* Keep your cumulative line if you want historical-only */}
                                         <Line yAxisId="right" type="monotone" dataKey="cumulativeCost" name="Total to date" stroke="#f59e0b" strokeWidth={2} dot={false} />
                                     </ComposedChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
-
-                        {/* Department Pie */}
                         <div className="glass-card p-6 rounded-lg">
                             <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
                                 <Layers size={18} className="text-gray-400" /> Spend by department
                             </h3>
-                            <p className="text-xs text-gray-500 -mt-4 mb-4">
-                                Share of total spend by team.
-                            </p>
                             <div className="h-64">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
@@ -795,7 +756,7 @@ export default function DailyUsage({ pricing = {} }) {
                         </div>
                     </div>
 
-                    {/* NEW: Detailed Department Breakdown Table */}
+                    {/* Department Table */}
                     <div className="glass-card p-6 rounded-lg animate-slide-in">
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                             <Layers size={18} className="text-gray-400" /> Department spend details
@@ -826,7 +787,7 @@ export default function DailyUsage({ pricing = {} }) {
                         </div>
                     </div>
 
-                    {/* Top Users Table */}
+                    {/* Users Table */}
                     <div className="glass-card p-6 rounded-lg">
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                             <Users size={18} className="text-gray-400" /> Top people by spend
@@ -846,9 +807,7 @@ export default function DailyUsage({ pricing = {} }) {
                                     {sortedUserData.map((u, i) => (
                                         <tr key={i} className="hover:bg-gray-50">
                                             <td className="px-4 py-2 font-medium text-gray-900">{u.name}</td>
-                                            <td className="px-4 py-2 text-gray-500">
-                                                <span className="bg-gray-100 px-2 py-1 rounded text-xs">{u.department}</span>
-                                            </td>
+                                            <td className="px-4 py-2 text-gray-500"><span className="bg-gray-100 px-2 py-1 rounded text-xs">{u.department}</span></td>
                                             <td className="px-4 py-2 text-right font-mono text-xs">{u.uniqueExecutions}</td>
                                             <td className="px-4 py-2 text-right text-gray-500 text-xs">{u.tokens.toLocaleString()}</td>
                                             <td className="px-4 py-2 text-right font-bold text-indigo-600">${u.cost.toFixed(2)}</td>
@@ -857,12 +816,9 @@ export default function DailyUsage({ pricing = {} }) {
                                 </tbody>
                             </table>
                         </div>
-                        <div className="text-xs text-gray-500 mt-2">
-                            Usage volume reflects text processed; spend is the direct cost impact.
-                        </div>
                     </div>
 
-                    {/* Top Nodes Table */}
+                    {/* Nodes Table */}
                     <div className="glass-card p-6 rounded-lg">
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                             <Server size={18} className="text-gray-400" /> Top workflow steps by spend
@@ -888,9 +844,6 @@ export default function DailyUsage({ pricing = {} }) {
                                     ))}
                                 </tbody>
                             </table>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-2">
-                            Workflow steps are the AI actions inside your automations.
                         </div>
                     </div>
                     <ForecastIntelligence dailyData={stats.dailyData} />

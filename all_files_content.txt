@@ -12,7 +12,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>financial-dashboard</title>
+    <title>AI Spend &amp; Operations Overview</title>
   </head>
   <body>
     <div id="root"></div>
@@ -116,7 +116,7 @@ export default {
     "recharts": "^3.6.0",
     "simple-statistics": "^7.8.8",
     "tailwind-merge": "^3.4.0",
-    "xlsx": "^0.18.5"
+    "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -246,9 +246,9 @@ function App() {
 
   // 3. Prepare Chart Data
   const chartData = [
-    { name: 'N8n Workflow', value: n8nCost },
-    { name: 'OpenAI Intelligence', value: openAICost },
-    { name: 'Pinecone Memory', value: pineconeCost },
+    { name: 'Automation platform (N8n)', value: n8nCost },
+    { name: 'AI model usage (OpenAI)', value: openAICost },
+    { name: 'Memory store (Pinecone)', value: pineconeCost },
   ].filter(item => item.value > 0);
 
   // Helper for formatting currency
@@ -266,10 +266,10 @@ function App() {
 
     const rows = [
       ['Category', 'Item', 'Detail', 'Monthly Cost'],
-      ['N8n', n8nData.plan, `${n8nData.duration} billing`, n8nCost.toFixed(2)],
-      ['Pinecone', pineconeData.plan, `${pineconeData.storageGB}GB / ${pineconeData.readUnits} RUs`, pineconeCost.toFixed(2)],
+      ['Automation platform (N8n)', n8nData.plan, `${n8nData.duration} billing`, n8nCost.toFixed(2)],
+      ['Memory store (Pinecone)', pineconeData.plan, `${pineconeData.storageGB}GB / ${pineconeData.readUnits} read units`, pineconeCost.toFixed(2)],
       ...aiNodes.map(node => [
-        'OpenAI',
+        'AI model usage (OpenAI)',
         node.name,
         `${node.model} (${node.executionsPerDay} runs/day)`,
         // Re-calc row cost logic for CSV consistency
@@ -367,9 +367,9 @@ function App() {
             <div className="glass-card p-6 rounded-xl border border-gray-200 sticky top-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <PieIcon size={20} className="text-gray-400" /> Cost Breakdown
+                  <PieIcon size={20} className="text-gray-400" /> Monthly cost breakdown
                 </h2>
-                <button onClick={handleExport} className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors" title="Export Forecast CSV">
+                <button onClick={handleExport} className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors" title="Download cost report">
                   <Download size={18} />
                 </button>
               </div>
@@ -398,13 +398,13 @@ function App() {
               {/* Grand Total Card */}
               <div className="pt-6 border-t border-dashed border-gray-200 text-center">
                 <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Projected Monthly OpEx
+                  Estimated monthly total
                 </div>
                 <div className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-500 mt-2 pb-1">
                   {formatCurrency(grandTotal)}
                 </div>
                 <div className="text-xs text-gray-400 mt-3 font-medium bg-gray-50 inline-block px-3 py-1 rounded-full border border-gray-100">
-                  *Calculated based on {getDaysInCurrentMonth()} calendar days
+                  Based on {getDaysInCurrentMonth()} calendar days
                 </div>
               </div>
             </div>
@@ -425,8 +425,8 @@ function App() {
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Financial & Operational Impact Dashboard</h1>
-            <p className="text-slate-500 mt-1">Real-time cost modeling & usage analytics</p>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">AI Spend & Operations Overview</h1>
+            <p className="text-slate-500 mt-1">A clear view of spend, usage, and trends</p>
           </div>
           <div className="flex gap-3">
             <div className="glass-card px-4 py-2 rounded-lg shadow-sm text-sm font-medium flex items-center min-w-[140px] justify-center border border-gray-200">
@@ -434,14 +434,14 @@ function App() {
               {status}
             </div>
 
-            <button onClick={loadData} className="p-2 glass-card rounded-lg shadow-sm border border-gray-200 hover:bg-white text-gray-700 transition-all" title="Refresh from DB">
+            <button onClick={loadData} className="p-2 glass-card rounded-lg shadow-sm border border-gray-200 hover:bg-white text-gray-700 transition-all" title="Refresh data">
               <RefreshCw size={20} />
             </button>
             <button onClick={() => setIsSettingsOpen(true)} className="p-2 glass-card rounded-lg shadow-sm border border-gray-200 hover:bg-white text-gray-700 transition-all">
               <Settings size={20} />
             </button>
             <button onClick={() => handleSave(false)} className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-md hover:bg-slate-800 transition-all active:scale-95">
-              <Save size={18} /> Save Session
+              <Save size={18} /> Save changes
             </button>
           </div>
         </header>
@@ -452,19 +452,19 @@ function App() {
             onClick={() => setActiveTab('analytics')}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'analytics' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
           >
-            <BarChart2 size={18} /> Daily Analytics
+            <BarChart2 size={18} /> Daily spend
           </button>
           <button
             onClick={() => setActiveTab('calculator')}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'calculator' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
           >
-            <Calculator size={18} /> Forecast Calculator
+            <Calculator size={18} /> Budget planner
           </button>
           <button
             onClick={() => setActiveTab('generator')}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'generator' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
           >
-            <Database size={18} /> Test Data Generator
+            <Database size={18} /> Sample data
           </button>
         </div>
 
@@ -492,6 +492,7 @@ function App() {
 }
 
 export default App;
+
 
 
 ================================================================================
@@ -607,12 +608,12 @@ export default function N8nSection({ data, setData, pricing, calculatedCost }) {
                 <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
                     <Cpu size={20} />
                 </div>
-                <h2 className="text-lg font-bold text-gray-800">1. N8n Infrastructure</h2>
+                <h2 className="text-lg font-bold text-gray-800">1. Automation platform (N8n)</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                    <label className={labelClass}>License Plan</label>
+                    <label className={labelClass}>Plan</label>
                     <select
                         className={inputClass}
                         value={plan}
@@ -625,7 +626,7 @@ export default function N8nSection({ data, setData, pricing, calculatedCost }) {
                 </div>
 
                 <div>
-                    <label className={labelClass}>Billing Cycle</label>
+                    <label className={labelClass}>Billing cycle</label>
                     <select
                         className={inputClass}
                         value={duration}
@@ -637,7 +638,7 @@ export default function N8nSection({ data, setData, pricing, calculatedCost }) {
                 </div>
 
                 <div>
-                    <label className={labelClass}>Active Users</label>
+                    <label className={labelClass}>Active users</label>
                     <div className="relative">
                         <Users size={16} className="absolute left-3 top-2.5 text-gray-400" />
                         <input
@@ -651,7 +652,7 @@ export default function N8nSection({ data, setData, pricing, calculatedCost }) {
                 </div>
 
                 <div>
-                    <label className={labelClass}>Executions / User</label>
+                    <label className={labelClass}>Runs per user</label>
                     <div className="relative">
                         <Clock size={16} className="absolute left-3 top-2.5 text-gray-400" />
                         <input
@@ -668,20 +669,21 @@ export default function N8nSection({ data, setData, pricing, calculatedCost }) {
             {/* KPI Summary Card Style */}
             <div className="bg-gray-50/50 border border-gray-100 p-4 rounded-xl flex justify-between items-center">
                 <div>
-                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Total Load</div>
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Total runs</div>
                     <div className={`text-lg font-bold ${isOverLimit ? 'text-red-600' : 'text-gray-800'}`}>
-                        {totalExecutions.toLocaleString()} <span className="text-sm font-normal text-gray-400">/ {currentPlan.limit.toLocaleString()} limit</span>
+                        {totalExecutions.toLocaleString()} <span className="text-sm font-normal text-gray-400">/ {currentPlan.limit.toLocaleString()} included</span>
                     </div>
-                    {isOverLimit && <div className="text-[10px] text-red-500 font-bold mt-1 bg-red-50 inline-block px-1.5 py-0.5 rounded">⚠️ PLAN LIMIT EXCEEDED</div>}
+                    {isOverLimit && <div className="text-[10px] text-red-500 font-bold mt-1 bg-red-50 inline-block px-1.5 py-0.5 rounded">⚠️ OVER PLAN LIMIT</div>}
                 </div>
                 <div className="text-right">
-                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Monthly Cost</div>
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Monthly spend</div>
                     <div className="text-2xl font-extrabold text-gray-900">${calculatedCost.toFixed(2)}</div>
                 </div>
             </div>
         </div>
     );
 }
+
 
 
 ================================================================================
@@ -752,7 +754,7 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
                     <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
                         <Zap size={20} />
                     </div>
-                    <h2 className="text-lg font-bold text-gray-800">2. OpenAI Intelligence</h2>
+                    <h2 className="text-lg font-bold text-gray-800">2. AI model usage (OpenAI)</h2>
                 </div>
                 
                 <div className="flex items-center gap-3">
@@ -762,7 +764,7 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
                             onChange={(e) => bulkUpdateModel(e.target.value)}
                             value=""
                         >
-                            <option value="" disabled>Bulk Change Model</option>
+                            <option value="" disabled>Change model for all</option>
                             {Object.entries(pricing.openai).map(([key, val]) => (
                                  <option key={key} value={key}>{val.label}</option>
                             ))}
@@ -771,7 +773,7 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
                     </div>
 
                     <button onClick={addNode} className="flex items-center gap-1.5 text-xs font-bold bg-indigo-50 text-indigo-600 px-3 py-2 rounded-lg hover:bg-indigo-100 transition-colors">
-                        <PlusCircle size={14} /> ADD WORKFLOW
+                        <PlusCircle size={14} /> Add workflow
                     </button>
                 </div>
             </div>
@@ -780,13 +782,13 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
                 <table className="w-full text-sm text-left border-collapse">
                     <thead className="bg-gray-50/80">
                         <tr>
-                            <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/4">Workflow Name</th>
-                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Model</th>
-                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">In Tks</th>
-                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Out Tks</th>
-                            <th className="py-3 px-2 text-xs font-bold text-blue-600 uppercase tracking-wider text-center">Cache %</th>
-                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center bg-gray-100/50">Runs/Day</th>
-                            <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Est. Monthly</th>
+                            <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/4">Workflow</th>
+                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider">AI model</th>
+                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Text in</th>
+                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Text out</th>
+                            <th className="py-3 px-2 text-xs font-bold text-blue-600 uppercase tracking-wider text-center">Reuse %</th>
+                            <th className="py-3 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider text-center bg-gray-100/50">Runs/day</th>
+                            <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Est. monthly spend</th>
                             <th className="py-3 px-2 w-10"></th>
                         </tr>
                     </thead>
@@ -852,23 +854,27 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
                     </tbody>
                 </table>
             </div>
+            <div className="mt-2 text-xs text-gray-500">
+                Text in/out are measured in text units (tokens). Higher values generally mean higher cost.
+            </div>
 
             {/* Footer Summary */}
             <div className="mt-6 bg-gray-50/50 border border-gray-100 p-4 rounded-xl flex justify-between items-center">
                 <div>
-                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Total Throughput</div>
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Total runs</div>
                     <div className="text-lg font-bold text-gray-800">
-                        {totalMonthlyExecutions.toLocaleString()} <span className="text-sm font-normal text-gray-400">runs / month</span>
+                        {totalMonthlyExecutions.toLocaleString()} <span className="text-sm font-normal text-gray-400">runs per month</span>
                     </div>
                 </div>
                 <div className="text-right">
-                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Monthly AI Cost</div>
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Monthly AI spend</div>
                     <div className="text-2xl font-extrabold text-gray-900">${calculatedCost.toFixed(2)}</div>
                 </div>
             </div>
         </div>
     );
 }
+
 
 
 ================================================================================
@@ -878,12 +884,13 @@ export default function OpenAISection({ nodes, setNodes, pricing, calculatedCost
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createSeriesCacheKey, getCachedForecast, setCachedForecast } from "../utils/forecastCache";
 import ForecastIntelligence from "./ForecastIntelligence";
+import { generateExcelReport } from '../utils/excelExport';
 
 import {
     UploadCloud, FileSpreadsheet, X,
     TrendingUp, Layers, Users, Server,
     Filter, Calendar, Search, ArrowUp, ArrowDown, ArrowUpDown,
-    Cpu
+    Cpu, Download
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -899,25 +906,22 @@ export default function DailyUsage({ pricing = {} }) {
     const [rowCount, setRowCount] = useState(0);
 
     // Filter & Data States
-    const rawDataRef = useRef([]); // Stores optimized raw rows
+    const rawDataRef = useRef([]);
     const [stats, setStats] = useState(null);
 
-    // Available options for filters (populated on load)
     const [availableOptions, setAvailableOptions] = useState({
         departments: [],
         models: []
     });
 
-    // Active Filters
     const [filters, setFilters] = useState({
-        dateRange: 'all', // '7', '30', 'all'
-        departments: [],  // Multi-select array
-        user: '',         // Search text
-        model: 'all',     // Dropdown
-        minCost: 0        // Slider
+        dateRange: 'all',
+        departments: [],
+        user: '',
+        model: 'all',
+        minCost: 0
     });
 
-    // Sort Configuration
     const [sortConfig, setSortConfig] = useState({
         daily: { key: 'date', direction: 'asc' },
         dept: { key: 'cost', direction: 'desc' },
@@ -925,16 +929,14 @@ export default function DailyUsage({ pricing = {} }) {
         node: { key: 'cost', direction: 'desc' }
     });
 
-
+    // --- FORECASTING STATE ---
     const forecastWorkerRef = useRef(null);
-
     const [forecastConfig, setForecastConfig] = useState({
         enabled: true,
         horizon: 14,
         confidence: 0.95,
         anomalyZ: 3.0,
     });
-
     const [forecastResult, setForecastResult] = useState(null);
     const [forecastError, setForecastError] = useState(null);
     const [forecastLoading, setForecastLoading] = useState(false);
@@ -944,7 +946,6 @@ export default function DailyUsage({ pricing = {} }) {
             new URL("../workers/forecastWorker.js", import.meta.url),
             { type: "module" }
         );
-
         return () => {
             forecastWorkerRef.current?.terminate();
             forecastWorkerRef.current = null;
@@ -979,11 +980,9 @@ export default function DailyUsage({ pricing = {} }) {
             }
 
             const requestId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-
             const handleMessage = async (event) => {
                 const payload = event.data;
                 if (!payload || payload.requestId !== requestId) return;
-
                 forecastWorkerRef.current?.removeEventListener("message", handleMessage);
 
                 if (payload.error) {
@@ -999,7 +998,6 @@ export default function DailyUsage({ pricing = {} }) {
             };
 
             forecastWorkerRef.current.addEventListener("message", handleMessage);
-
             forecastWorkerRef.current.postMessage({
                 requestId,
                 dates,
@@ -1009,22 +1007,21 @@ export default function DailyUsage({ pricing = {} }) {
                 anomalyZ: forecastConfig.anomalyZ,
             });
         };
-
         runForecast();
     }, [stats, forecastConfig.enabled, forecastConfig.horizon, forecastConfig.confidence, forecastConfig.anomalyZ]);
 
     const trendData = useMemo(() => {
         if (!stats?.dailyData?.length) return [];
+        const shouldShowForecast = forecastConfig.enabled && forecastResult?.forecast?.length;
 
         const base = stats.dailyData.map((d, i) => ({
             date: d.date,
             actualCost: d.cost,
-            // Keep existing fields if you want (cumulativeCost etc.)
             cumulativeCost: d.cumulativeCost,
-            modelCost: forecastResult?.fitted?.[i] ?? null,
+            modelCost: shouldShowForecast ? forecastResult?.fitted?.[i] ?? null : null,
         }));
 
-        if (!forecastResult?.forecast?.length) return base;
+        if (!shouldShowForecast) return base;
 
         const future = forecastResult.forecast.map((y, idx) => ({
             date: forecastResult.forecastDates?.[idx] ?? `+${idx + 1}`,
@@ -1036,10 +1033,21 @@ export default function DailyUsage({ pricing = {} }) {
         }));
 
         return [...base, ...future];
-    }, [stats, forecastResult]);
+    }, [stats, forecastResult, forecastConfig.enabled]);
+
+    const showForecast = forecastConfig.enabled && !!forecastResult?.forecast?.length;
+
+    useEffect(() => {
+        if (!forecastConfig.enabled) {
+            setForecastLoading(false);
+            setForecastError(null);
+            setForecastResult(null);
+        }
+    }, [forecastConfig.enabled]);
 
 
-    // Helper: Sort Function
+    // --- DATA PROCESSING LOGIC ---
+
     const getSortedData = (data, tableKey) => {
         const config = sortConfig[tableKey];
         if (!data || !config) return data;
@@ -1047,17 +1055,14 @@ export default function DailyUsage({ pricing = {} }) {
         return [...data].sort((a, b) => {
             let aVal = a[config.key];
             let bVal = b[config.key];
-
             if (typeof aVal === 'string') aVal = aVal.toLowerCase();
             if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-
             if (aVal < bVal) return config.direction === 'asc' ? -1 : 1;
             if (aVal > bVal) return config.direction === 'asc' ? 1 : -1;
             return 0;
         });
     };
 
-    // Helper: Toggle Sort
     const handleSort = (key, table) => {
         setSortConfig(prev => ({
             ...prev,
@@ -1069,10 +1074,8 @@ export default function DailyUsage({ pricing = {} }) {
     };
 
     const optimizeRow = (row, pricing) => {
-        // Guard against missing pricing data
         if (!pricing || !pricing.openai) return null;
 
-        // Safe Key Finding
         const findKey = (obj, target) => Object.keys(obj).find(k => k.toLowerCase().trim() === target.toLowerCase().trim());
 
         const modelRaw = row[findKey(row, 'Model')] || 'unknown';
@@ -1086,9 +1089,7 @@ export default function DailyUsage({ pricing = {} }) {
         const output = parseFloat(row[findKey(row, 'Output Tokens')] || 0);
         const cached = parseFloat(row[findKey(row, 'Cached Tokens')] || row[findKey(row, 'Cache')] || 0);
 
-        // Calculate Cost
         let modelPriceKey = Object.keys(pricing.openai).find(k => modelRaw.includes(k));
-        // Fallback to default if model not found
         const rates = (modelPriceKey && pricing.openai[modelPriceKey]) || { input: 0, output: 0, cached: 0 };
         const freshInput = Math.max(0, input - cached);
 
@@ -1098,16 +1099,17 @@ export default function DailyUsage({ pricing = {} }) {
 
         const dateObj = timeStr ? new Date(timeStr) : new Date();
 
-        // Return Minified Object for Memory Efficiency
         return {
             id: executionId,
-            ts: dateObj.getTime(), // Timestamp for fast date filtering
+            ts: dateObj.getTime(),
             date: dateObj.toISOString().split('T')[0],
             dpt: department,
             usr: user,
             mdl: modelRaw,
             nd: nodeName.trim(),
             c: cost,
+            ti: input,    // Added: Total Input
+            to: output,   // Added: Total Output
             t: input + output
         };
     };
@@ -1116,9 +1118,8 @@ export default function DailyUsage({ pricing = {} }) {
         const file = e.target.files[0];
         if (!file) return;
 
-        // Check if pricing is loaded
         if (!pricing || !pricing.openai) {
-            setError("Pricing configuration is missing. Please verify settings.");
+            setError("Pricing configuration is missing.");
             return;
         }
 
@@ -1126,17 +1127,14 @@ export default function DailyUsage({ pricing = {} }) {
         setProcessing(true);
         setError(null);
         setRowCount(0);
-        rawDataRef.current = []; // Clear previous data
+        rawDataRef.current = [];
 
-        // Temporary Sets for filter population
         const depts = new Set();
         const models = new Set();
-
         const reader = new FileReader();
 
         reader.onload = (event) => {
             const text = event.target.result;
-            // Split by newline
             const lines = text.split('\n');
 
             if (lines.length === 0) {
@@ -1145,37 +1143,25 @@ export default function DailyUsage({ pricing = {} }) {
                 return;
             }
 
-            // Parse Headers
             const headers = lines[0].split(',').map(h => h.trim());
-
             let processedCount = 0;
-            let currentIndex = 1; // Skip header
+            let currentIndex = 1;
             const totalLines = lines.length;
-            const CHUNK_SIZE = 5000; // Process in chunks to avoid freezing UI
+            const CHUNK_SIZE = 5000;
 
-            // Custom Parsing Loop
             const processChunk = () => {
                 const chunkEnd = Math.min(currentIndex + CHUNK_SIZE, totalLines);
-
                 for (let i = currentIndex; i < chunkEnd; i++) {
                     const line = lines[i];
                     if (!line || !line.trim()) continue;
-
-                    // Simple split (handles standard CSVs)
                     const values = line.split(',');
                     const row = {};
                     headers.forEach((h, idx) => {
-                        // Strip quotes if present
                         let val = values[idx] || '';
-                        if (val.startsWith('"') && val.endsWith('"')) {
-                            val = val.slice(1, -1);
-                        }
+                        if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
                         row[h] = val.trim();
                     });
-
                     processedCount++;
-
-                    // Optimize Row immediately
                     const processedRow = optimizeRow(row, pricing);
                     if (processedRow) {
                         rawDataRef.current.push(processedRow);
@@ -1183,44 +1169,35 @@ export default function DailyUsage({ pricing = {} }) {
                         if (processedRow.mdl) models.add(processedRow.mdl);
                     }
                 }
-
                 currentIndex = chunkEnd;
                 setRowCount(processedCount);
 
                 if (currentIndex < totalLines) {
-                    // Schedule next chunk
                     setTimeout(processChunk, 0);
                 } else {
-                    // All Done
                     setAvailableOptions({
                         departments: Array.from(depts).sort(),
                         models: Array.from(models).sort()
                     });
-
-                    recalculateStats(); // Initial calculation
+                    recalculateStats();
                     setProcessing(false);
                 }
             };
-
-            // Start processing
             processChunk();
         };
 
         reader.onerror = () => {
-            console.error(reader.error);
             setError("Failed to read file.");
             setProcessing(false);
         };
-
         reader.readAsText(file);
     };
 
-    // The heavy lifter: Aggregates filtered data
-    const recalculateStats = () => {
+    // --- REUSABLE FILTER LOGIC ---
+    const getFilteredRows = () => {
         const allRows = rawDataRef.current;
-        if (allRows.length === 0) return;
+        if (allRows.length === 0) return [];
 
-        // 1. Filter
         const now = new Date();
         let cutoffTime = 0;
         if (filters.dateRange === '7') cutoffTime = now.getTime() - (7 * 24 * 60 * 60 * 1000);
@@ -1229,7 +1206,7 @@ export default function DailyUsage({ pricing = {} }) {
         const activeDepts = new Set(filters.departments);
         const searchUser = filters.user.toLowerCase();
 
-        const filteredRows = allRows.filter(r => {
+        return allRows.filter(r => {
             if (cutoffTime > 0 && r.ts < cutoffTime) return false;
             if (filters.departments.length > 0 && !activeDepts.has(r.dpt)) return false;
             if (filters.model !== 'all' && r.mdl !== filters.model) return false;
@@ -1237,11 +1214,30 @@ export default function DailyUsage({ pricing = {} }) {
             if (searchUser && !r.usr.toLowerCase().includes(searchUser)) return false;
             return true;
         });
+    };
 
-        // 2. Aggregate
+    const handleExportReport = () => {
+        const rowsToExport = getFilteredRows();
+
+        if (rowsToExport.length === 0) {
+            alert("No data found matching current filters to export.");
+            return;
+        }
+
+        const dateStr = new Date().toISOString().slice(0, 10);
+        generateExcelReport(rowsToExport, `AI_Spend_By_Dept_${dateStr}.xlsx`);
+    };
+
+    const recalculateStats = () => {
+        const filteredRows = getFilteredRows();
+        if (filteredRows.length === 0) return;
+
+        // Expanded Aggregation Structure
         const tempStats = {
             totalCost: 0,
             totalTokens: 0,
+            totalInputTokens: 0,
+            totalOutputTokens: 0,
             uniqueExecutions: new Set(),
             dailyMap: {},
             deptMap: {},
@@ -1249,12 +1245,14 @@ export default function DailyUsage({ pricing = {} }) {
             nodeMap: {}
         };
 
-        // Determine date range for average calculations
         const uniqueDates = new Set();
 
         filteredRows.forEach(r => {
             tempStats.totalCost += r.c;
             tempStats.totalTokens += r.t;
+            tempStats.totalInputTokens += r.ti;
+            tempStats.totalOutputTokens += r.to;
+
             if (r.id) tempStats.uniqueExecutions.add(r.id);
             uniqueDates.add(r.date);
 
@@ -1263,28 +1261,33 @@ export default function DailyUsage({ pricing = {} }) {
             tempStats.dailyMap[r.date].cost += r.c;
             tempStats.dailyMap[r.date].executionIds.add(r.id);
 
-            // Dept
-            if (!tempStats.deptMap[r.dpt]) tempStats.deptMap[r.dpt] = { cost: 0, tokens: 0, executionIds: new Set() };
+            // Dept - Adding Token Splits
+            if (!tempStats.deptMap[r.dpt]) tempStats.deptMap[r.dpt] = { cost: 0, inputTokens: 0, outputTokens: 0, executionIds: new Set() };
             tempStats.deptMap[r.dpt].cost += r.c;
+            tempStats.deptMap[r.dpt].inputTokens += r.ti;
+            tempStats.deptMap[r.dpt].outputTokens += r.to;
             tempStats.deptMap[r.dpt].executionIds.add(r.id);
 
-            // User
-            if (!tempStats.userMap[r.usr]) tempStats.userMap[r.usr] = { cost: 0, tokens: 0, department: r.dpt, executionIds: new Set() };
+            // User - Adding Token Splits
+            if (!tempStats.userMap[r.usr]) tempStats.userMap[r.usr] = { cost: 0, tokens: 0, inputTokens: 0, outputTokens: 0, department: r.dpt, executionIds: new Set() };
             tempStats.userMap[r.usr].cost += r.c;
             tempStats.userMap[r.usr].tokens += r.t;
+            tempStats.userMap[r.usr].inputTokens += r.ti;
+            tempStats.userMap[r.usr].outputTokens += r.to;
             tempStats.userMap[r.usr].executionIds.add(r.id);
 
-            // Node
+            // Node - Adding Token Splits
             const nodeKey = `${r.nd} (${r.mdl})`;
-            if (!tempStats.nodeMap[nodeKey]) tempStats.nodeMap[nodeKey] = { name: r.nd, model: r.mdl, cost: 0, rowCount: 0 };
+            if (!tempStats.nodeMap[nodeKey]) tempStats.nodeMap[nodeKey] = { name: r.nd, model: r.mdl, cost: 0, inputTokens: 0, outputTokens: 0, rowCount: 0 };
             tempStats.nodeMap[nodeKey].cost += r.c;
+            tempStats.nodeMap[nodeKey].inputTokens += r.ti;
+            tempStats.nodeMap[nodeKey].outputTokens += r.to;
             tempStats.nodeMap[nodeKey].rowCount += 1;
         });
 
         const dayCount = uniqueDates.size || 1;
-
-        // 3. Flatten for Charts/Tables
         let runningTotal = 0;
+
         const dailyData = Object.entries(tempStats.dailyMap)
             .sort((a, b) => new Date(a[0]) - new Date(b[0]))
             .map(([date, data]) => {
@@ -1301,6 +1304,8 @@ export default function DailyUsage({ pricing = {} }) {
             .map(([name, data]) => ({
                 name,
                 cost: data.cost,
+                inputTokens: data.inputTokens,
+                outputTokens: data.outputTokens,
                 pct: (data.cost / tempStats.totalCost) * 100,
                 uniqueExecutions: data.executionIds.size,
                 avgDaily: data.cost / dayCount
@@ -1311,17 +1316,19 @@ export default function DailyUsage({ pricing = {} }) {
                 name,
                 cost: data.cost,
                 tokens: data.tokens,
+                inputTokens: data.inputTokens,
+                outputTokens: data.outputTokens,
                 department: data.department,
                 uniqueExecutions: data.executionIds.size
             }));
-        // Sort later in UI
 
         const nodeData = Object.values(tempStats.nodeMap);
-        // Sort later in UI
 
         setStats({
             totalCost: tempStats.totalCost,
             totalTokens: tempStats.totalTokens,
+            totalInputTokens: tempStats.totalInputTokens,
+            totalOutputTokens: tempStats.totalOutputTokens,
             totalUniqueExecutions: tempStats.uniqueExecutions.size,
             dailyData,
             departmentData,
@@ -1330,10 +1337,8 @@ export default function DailyUsage({ pricing = {} }) {
         });
     };
 
-    // Effect: Trigger recalculation when filters change
     useEffect(() => {
         if (rawDataRef.current.length > 0) {
-            // Debounce for performance if dragging slider
             const timer = setTimeout(() => {
                 recalculateStats();
             }, 100);
@@ -1356,12 +1361,11 @@ export default function DailyUsage({ pricing = {} }) {
         });
     };
 
-    // Helper Component for Sort Headers
     const SortHeader = ({ label, tableKey, colKey, align = 'left' }) => {
         const isActive = sortConfig[tableKey].key === colKey;
         return (
             <th
-                className={`px-4 py-3 cursor-pointer transition-colors select-none ${isActive ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-100'}`}
+                className={`group px-4 py-3 cursor-pointer transition-colors select-none ${isActive ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-100'}`}
                 onClick={() => handleSort(colKey, tableKey)}
                 style={{ textAlign: align }}
             >
@@ -1379,7 +1383,6 @@ export default function DailyUsage({ pricing = {} }) {
         );
     };
 
-    // Derived sorted data for tables
     const sortedDeptData = useMemo(() => getSortedData(stats?.departmentData, 'dept'), [stats, sortConfig.dept]);
     const sortedUserData = useMemo(() => getSortedData(stats?.userData, 'user')?.slice(0, 100), [stats, sortConfig.user]);
     const sortedNodeData = useMemo(() => getSortedData(stats?.nodeData, 'node')?.slice(0, 50), [stats, sortConfig.node]);
@@ -1396,10 +1399,10 @@ export default function DailyUsage({ pricing = {} }) {
                             <UploadCloud size={48} className="text-indigo-600" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-gray-800">Upload Large Usage Report</h3>
+                            <h3 className="text-xl font-bold text-gray-800">Upload usage report</h3>
                             <p className="text-gray-500 mt-2">
-                                Optimized for large datasets (1M+ rows).<br />
-                                <span className="font-bold text-indigo-600">Please upload CSV files only.</span>
+                                Supports large files (1M+ rows).<br />
+                                <span className="font-bold text-indigo-600">Please upload a CSV file.</span>
                             </p>
                         </div>
                     </label>
@@ -1411,10 +1414,10 @@ export default function DailyUsage({ pricing = {} }) {
             {processing && (
                 <div className="text-center p-12 bg-white rounded-xl shadow-sm">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                    <h3 className="text-lg font-bold text-gray-800">Analyzing Data Stream...</h3>
+                    <h3 className="text-lg font-bold text-gray-800">Summarizing usage and spend...</h3>
                     <p className="text-gray-500 mb-2">{fileName}</p>
                     <div className="text-2xl font-mono font-bold text-indigo-600">
-                        {rowCount.toLocaleString()} rows processed
+                        {rowCount.toLocaleString()} records processed
                     </div>
                 </div>
             )}
@@ -1430,21 +1433,31 @@ export default function DailyUsage({ pricing = {} }) {
                             </div>
                             <div>
                                 <h2 className="font-bold text-gray-800">{fileName}</h2>
-                                <p className="text-xs text-gray-500">{rowCount.toLocaleString()} total rows analyzed</p>
+                                <p className="text-xs text-gray-500">{rowCount.toLocaleString()} records processed</p>
                             </div>
                         </div>
-                        <button
-                            onClick={handleReset}
-                            className="text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                        >
-                            <X size={16} /> Reset Data
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {/* --- EXPORT BUTTON --- */}
+                            <button
+                                onClick={handleExportReport}
+                                className="text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 shadow-sm"
+                            >
+                                <Download size={16} /> Download report
+                            </button>
+                            {/* ------------------------- */}
+                            <button
+                                onClick={handleReset}
+                                className="text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                            >
+                                <X size={16} /> Reset Data
+                            </button>
+                        </div>
                     </div>
 
-                    {/* FILTER BAR - New Feature */}
+                    {/* FILTER BAR */}
                     <div className="glass-card p-4 rounded-lg flex flex-col lg:flex-row gap-4 items-center justify-between border-l-4 border-indigo-500">
                         <div className="flex items-center gap-2 text-indigo-900 font-bold shrink-0">
-                            <Filter size={20} /> Filters:
+                            <Filter size={20} /> Refine view
                         </div>
 
                         <div className="flex flex-wrap gap-3 items-center w-full lg:w-auto">
@@ -1462,10 +1475,11 @@ export default function DailyUsage({ pricing = {} }) {
                                 </select>
                             </div>
 
-                            {/* Department - Multi-select Simulation via Dropdown */}
+                            {/* Department */}
                             <div className="relative">
                                 <Layers size={16} className="absolute left-3 top-2.5 text-gray-400" />
                                 <select
+                                    className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none hover:border-indigo-300 transition-colors cursor-pointer appearance-none min-w-[160px]"
                                     value={filters.departments.length ? filters.departments[0] : 'all'}
                                     onChange={(e) => {
                                         const val = e.target.value;
@@ -1477,12 +1491,6 @@ export default function DailyUsage({ pricing = {} }) {
                                         <option key={d} value={d}>{d}</option>
                                     ))}
                                 </select>
-
-                                {filters.departments.length > 0 && (
-                                    <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
-                                        {filters.departments.length}
-                                    </span>
-                                )}
                             </div>
 
                             {/* User Search */}
@@ -1490,7 +1498,7 @@ export default function DailyUsage({ pricing = {} }) {
                                 <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
                                 <input
                                     type="text"
-                                    placeholder="Search user..."
+                                    placeholder="Search person or team..."
                                     className="pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-w-[160px]"
                                     value={filters.user}
                                     onChange={(e) => setFilters({ ...filters, user: e.target.value })}
@@ -1505,7 +1513,7 @@ export default function DailyUsage({ pricing = {} }) {
                                     value={filters.model}
                                     onChange={(e) => setFilters({ ...filters, model: e.target.value })}
                                 >
-                                    <option value="all">All Models</option>
+                                    <option value="all">All AI Models</option>
                                     {availableOptions.models.map(m => (
                                         <option key={m} value={m}>{m}</option>
                                     ))}
@@ -1514,7 +1522,7 @@ export default function DailyUsage({ pricing = {} }) {
 
                             {/* Min Cost Slider */}
                             <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-md">
-                                <span className="text-xs font-medium text-gray-500">Min $</span>
+                                <span className="text-xs font-medium text-gray-500">Min $/day</span>
                                 <input
                                     type="range" min="0" max="100" step="1"
                                     className="w-24 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
@@ -1529,16 +1537,21 @@ export default function DailyUsage({ pricing = {} }) {
                     {/* KPI Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="glass-card p-6 rounded-lg border-l-4 border-indigo-500">
-                            <p className="text-sm font-medium text-gray-500 mb-1">Total Estimated Cost</p>
+                            <p className="text-sm font-medium text-gray-500 mb-1">Total AI spend (estimate)</p>
                             <div className="text-3xl font-bold text-gray-900">${stats.totalCost.toFixed(2)}</div>
+                            <p className="text-xs text-gray-400 mt-1">Based on configured pricing</p>
                         </div>
                         <div className="glass-card p-6 rounded-lg border-l-4 border-emerald-500">
-                            <p className="text-sm font-medium text-gray-500 mb-1">Total Token Volume</p>
+                            <p className="text-sm font-medium text-gray-500 mb-1">Usage volume (text units)</p>
                             <div className="text-3xl font-bold text-gray-900">{(stats.totalTokens / 1e6).toFixed(2)}M</div>
+                            <p className="text-xs text-gray-400 mt-1">
+                                {(stats.totalInputTokens / 1e6).toFixed(2)}M in / {(stats.totalOutputTokens / 1e6).toFixed(2)}M out
+                            </p>
                         </div>
                         <div className="glass-card p-6 rounded-lg border-l-4 border-blue-500">
-                            <p className="text-sm font-medium text-gray-500 mb-1">Unique Executions</p>
+                            <p className="text-sm font-medium text-gray-500 mb-1">Automation runs</p>
                             <div className="text-3xl font-bold text-gray-900">{stats.totalUniqueExecutions.toLocaleString()}</div>
+                            <p className="text-xs text-gray-400 mt-1">Distinct workflow executions</p>
                         </div>
                     </div>
 
@@ -1549,41 +1562,34 @@ export default function DailyUsage({ pricing = {} }) {
                                 checked={forecastConfig.enabled}
                                 onChange={(e) => setForecastConfig((p) => ({ ...p, enabled: e.target.checked }))}
                             />
-                            Show forecast
+                            Show spend forecast
                         </label>
-
                         <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600">Horizon</span>
+                            <span className="text-sm text-gray-600">Days ahead</span>
                             <input
-                                type="number"
-                                min="1"
-                                max="365"
+                                type="number" min="1" max="365"
                                 value={forecastConfig.horizon}
                                 onChange={(e) => setForecastConfig((p) => ({ ...p, horizon: Number(e.target.value) || 14 }))}
                                 className="w-20 px-2 py-1 border border-gray-200 rounded"
                             />
                         </div>
-
                         <select
                             value={forecastConfig.confidence}
                             onChange={(e) => setForecastConfig((p) => ({ ...p, confidence: Number(e.target.value) }))}
                             className="px-2 py-1 border border-gray-200 rounded text-sm"
                         >
-                            <option value={0.95}>95% CI</option>
-                            <option value={0.99}>99% CI</option>
+                            <option value={0.95}>95% range</option>
+                            <option value={0.99}>99% range</option>
                         </select>
-
                         {forecastLoading && <span className="text-xs text-gray-400">Forecasting…</span>}
                         {forecastError && <span className="text-xs text-red-600">{forecastError}</span>}
                     </div>
 
-
                     {/* Main Charts Row */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Daily Trend */}
                         <div className="lg:col-span-2 glass-card p-6 rounded-lg">
                             <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
-                                <TrendingUp size={18} className="text-gray-400" /> Daily Cost Trend
+                                <TrendingUp size={18} className="text-gray-400" /> Daily spend
                             </h3>
                             <div className="h-72">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -1592,35 +1598,24 @@ export default function DailyUsage({ pricing = {} }) {
                                         <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                                         <YAxis yAxisId="left" orientation="left" tickFormatter={(v) => `$${v}`} />
                                         <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `$${v}`} />
-                                        <Tooltip
-                                            formatter={(value, name) => {
-                                                if (value == null || Number.isNaN(Number(value))) return ["—", name];
-                                                const num = Number(value);
-                                                const label =
-                                                    name === "cumulativeCost" ? "Cumulative" :
-                                                        name === "actualCost" ? "Daily Cost" :
-                                                            name;
-                                                return [`$${num.toFixed(2)}`, label];
-                                            }}
-                                        />
-
+                                        <Tooltip formatter={(value, name) => [name.includes('Cost') || name.includes('estimate') ? `$${Number(value).toFixed(2)}` : value, name]} />
                                         <Legend />
-                                        <Bar yAxisId="left" dataKey="actualCost" name="Daily Cost" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                                        <Line yAxisId="left" type="monotone" dataKey="modelCost" name="Forecast / Fit" strokeWidth={2} dot={false} />
-                                        <Line yAxisId="left" type="monotone" dataKey="ciUpper" name="CI Upper" strokeDasharray="4 4" dot={false} />
-                                        <Line yAxisId="left" type="monotone" dataKey="ciLower" name="CI Lower" strokeDasharray="4 4" dot={false} />
-
-                                        {/* Keep your cumulative line if you want historical-only */}
-                                        <Line yAxisId="right" type="monotone" dataKey="cumulativeCost" name="Cumulative" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                                        <Bar yAxisId="left" dataKey="actualCost" name="Daily spend" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                                        {showForecast && (
+                                            <>
+                                                <Line yAxisId="left" type="monotone" dataKey="modelCost" name="Forecast" strokeWidth={2} dot={false} />
+                                                <Line yAxisId="left" type="monotone" dataKey="ciUpper" name="High estimate" strokeDasharray="4 4" dot={false} />
+                                                <Line yAxisId="left" type="monotone" dataKey="ciLower" name="Low estimate" strokeDasharray="4 4" dot={false} />
+                                            </>
+                                        )}
+                                        <Line yAxisId="right" type="monotone" dataKey="cumulativeCost" name="Total to date" stroke="#f59e0b" strokeWidth={2} dot={false} />
                                     </ComposedChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
-
-                        {/* Department Pie */}
                         <div className="glass-card p-6 rounded-lg">
                             <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
-                                <Layers size={18} className="text-gray-400" /> Cost by Dept
+                                <Layers size={18} className="text-gray-400" /> Spend by department
                             </h3>
                             <div className="h-64">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -1644,20 +1639,20 @@ export default function DailyUsage({ pricing = {} }) {
                         </div>
                     </div>
 
-                    {/* NEW: Detailed Department Breakdown Table */}
+                    {/* Department Table */}
                     <div className="glass-card p-6 rounded-lg animate-slide-in">
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <Layers size={18} className="text-gray-400" /> Department Breakdown
+                            <Layers size={18} className="text-gray-400" /> Department spend details
                         </h3>
                         <div className="overflow-auto max-h-[300px]">
                             <table className="w-full text-sm text-left">
                                 <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
                                     <tr>
                                         <SortHeader tableKey="dept" colKey="name" label="Department" />
-                                        <SortHeader tableKey="dept" colKey="cost" label="Total Cost" align="right" />
-                                        <SortHeader tableKey="dept" colKey="pct" label="% Total" align="right" />
-                                        <SortHeader tableKey="dept" colKey="uniqueExecutions" label="Executions" align="right" />
-                                        <SortHeader tableKey="dept" colKey="avgDaily" label="Avg Daily Cost" align="right" />
+                                        <SortHeader tableKey="dept" colKey="cost" label="Total spend" align="right" />
+                                        <SortHeader tableKey="dept" colKey="pct" label="Share of spend" align="right" />
+                                        <SortHeader tableKey="dept" colKey="uniqueExecutions" label="Runs" align="right" />
+                                        <SortHeader tableKey="dept" colKey="avgDaily" label="Avg daily spend" align="right" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -1675,29 +1670,27 @@ export default function DailyUsage({ pricing = {} }) {
                         </div>
                     </div>
 
-                    {/* Top Users Table */}
+                    {/* Users Table */}
                     <div className="glass-card p-6 rounded-lg">
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <Users size={18} className="text-gray-400" /> Top Users by Cost
+                            <Users size={18} className="text-gray-400" /> Top people by spend
                         </h3>
                         <div className="overflow-auto max-h-[400px]">
                             <table className="w-full text-sm text-left">
                                 <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
                                     <tr>
-                                        <SortHeader tableKey="user" colKey="name" label="User" />
+                                        <SortHeader tableKey="user" colKey="name" label="Person" />
                                         <SortHeader tableKey="user" colKey="department" label="Department" />
-                                        <SortHeader tableKey="user" colKey="uniqueExecutions" label="Execs" align="right" />
-                                        <SortHeader tableKey="user" colKey="tokens" label="Tokens" align="right" />
-                                        <SortHeader tableKey="user" colKey="cost" label="Cost" align="right" />
+                                        <SortHeader tableKey="user" colKey="uniqueExecutions" label="Runs" align="right" />
+                                        <SortHeader tableKey="user" colKey="tokens" label="Usage volume (text units)" align="right" />
+                                        <SortHeader tableKey="user" colKey="cost" label="Spend" align="right" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {sortedUserData.map((u, i) => (
                                         <tr key={i} className="hover:bg-gray-50">
                                             <td className="px-4 py-2 font-medium text-gray-900">{u.name}</td>
-                                            <td className="px-4 py-2 text-gray-500">
-                                                <span className="bg-gray-100 px-2 py-1 rounded text-xs">{u.department}</span>
-                                            </td>
+                                            <td className="px-4 py-2 text-gray-500"><span className="bg-gray-100 px-2 py-1 rounded text-xs">{u.department}</span></td>
                                             <td className="px-4 py-2 text-right font-mono text-xs">{u.uniqueExecutions}</td>
                                             <td className="px-4 py-2 text-right text-gray-500 text-xs">{u.tokens.toLocaleString()}</td>
                                             <td className="px-4 py-2 text-right font-bold text-indigo-600">${u.cost.toFixed(2)}</td>
@@ -1708,19 +1701,19 @@ export default function DailyUsage({ pricing = {} }) {
                         </div>
                     </div>
 
-                    {/* Top Nodes Table */}
+                    {/* Nodes Table */}
                     <div className="glass-card p-6 rounded-lg">
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <Server size={18} className="text-gray-400" /> Top AI Nodes by Cost
+                            <Server size={18} className="text-gray-400" /> Top workflow steps by spend
                         </h3>
                         <div className="overflow-auto max-h-[400px]">
                             <table className="w-full text-sm text-left">
                                 <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
                                     <tr>
-                                        <SortHeader tableKey="node" colKey="name" label="Node Name" />
-                                        <SortHeader tableKey="node" colKey="model" label="Model" />
-                                        <SortHeader tableKey="node" colKey="rowCount" label="Ops Count" align="right" />
-                                        <SortHeader tableKey="node" colKey="cost" label="Cost" align="right" />
+                                        <SortHeader tableKey="node" colKey="name" label="Workflow step" />
+                                        <SortHeader tableKey="node" colKey="model" label="AI model" />
+                                        <SortHeader tableKey="node" colKey="rowCount" label="Runs" align="right" />
+                                        <SortHeader tableKey="node" colKey="cost" label="Spend" align="right" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -1858,13 +1851,13 @@ export default function DataGenerator({ pricing }) {
                 <div className="inline-flex justify-center items-center p-4 bg-indigo-50 rounded-full text-indigo-600 mb-4">
                     <Database size={40} />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-800">Big Data Generator</h2>
-                <p className="text-gray-500 mt-2">Generate massive, valid CSV datasets for stress testing.</p>
+                <h2 className="text-2xl font-bold text-gray-800">Sample Data Generator</h2>
+                <p className="text-gray-500 mt-2">Create sample CSV files for demos and testing.</p>
             </div>
 
             <div className="space-y-6">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Number of Rows</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Number of rows</label>
                     <select 
                         value={rowCount} 
                         onChange={(e) => setRowCount(parseInt(e.target.value))}
@@ -1881,24 +1874,24 @@ export default function DataGenerator({ pricing }) {
                 </div>
 
                 {!isGenerating && !generatedFile && (
-                    <button 
-                        onClick={generateCSV}
-                        className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg shadow transition-all flex items-center justify-center gap-2"
-                    >
-                        <FileText size={20} /> Generate CSV
-                    </button>
+                        <button 
+                            onClick={generateCSV}
+                            className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg shadow transition-all flex items-center justify-center gap-2"
+                        >
+                            <FileText size={20} /> Generate sample CSV
+                        </button>
                 )}
 
                 {isGenerating && (
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm font-medium text-gray-600">
-                            <span>Generating...</span>
+                            <span>Building file...</span>
                             <span>{progress}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2.5">
                             <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-75" style={{ width: `${progress}%` }}></div>
                         </div>
-                        <p className="text-xs text-center text-gray-400 mt-2">Please wait, constructing data chunks...</p>
+                        <p className="text-xs text-center text-gray-400 mt-2">Please wait, building the file...</p>
                     </div>
                 )}
 
@@ -1907,7 +1900,7 @@ export default function DataGenerator({ pricing }) {
                         <div className="flex justify-center text-green-600 mb-2">
                             <CheckCircle size={32} />
                         </div>
-                        <h3 className="text-lg font-bold text-green-800">Generation Complete!</h3>
+                        <h3 className="text-lg font-bold text-green-800">Your file is ready</h3>
                         <p className="text-sm text-green-700 mb-4">File Size: {generatedFile.size} MB</p>
                         
                         <a 
@@ -1915,14 +1908,14 @@ export default function DataGenerator({ pricing }) {
                             download={generatedFile.name}
                             className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold shadow transition-colors"
                         >
-                            <Download size={20} /> Download CSV
+                            <Download size={20} /> Download sample CSV
                         </a>
                         
                         <button 
                             onClick={() => setGeneratedFile(null)} 
                             className="block w-full mt-4 text-sm text-gray-500 hover:text-gray-700 underline"
                         >
-                            Generate Another
+                            Generate another
                         </button>
                     </div>
                 )}
@@ -1930,6 +1923,7 @@ export default function DataGenerator({ pricing }) {
         </div>
     );
 }
+
 
 
 ================================================================================
@@ -1959,15 +1953,40 @@ import {
 } from "../utils/forecastCacheV2";
 
 function formatMoney(value) {
+  if (value == null) return "—";
   const num = Number(value);
   if (!Number.isFinite(num)) return "—";
   return `$${num.toFixed(2)}`;
 }
 
 function formatNumber(value) {
+  if (value == null) return "—";
   const num = Number(value);
   if (!Number.isFinite(num)) return "—";
   return num.toLocaleString();
+}
+
+function formatPercent(value, digits = 1) {
+  if (value == null) return "—";
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "—";
+  return `${(num * 100).toFixed(digits)}%`;
+}
+
+function formatStat(value, digits = 2) {
+  if (value == null) return "—";
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "—";
+  return num.toFixed(digits);
+}
+
+function formatSignedValue(value, isCountTarget) {
+  if (value == null) return "—";
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "—";
+  const sign = num > 0 ? "+" : "";
+  if (isCountTarget) return `${sign}${num.toFixed(2)}`;
+  return `${sign}$${num.toFixed(2)}`;
 }
 
 function downloadCsv(filename, rows) {
@@ -1995,7 +2014,9 @@ export default function ForecastIntelligence({ dailyData }) {
     confidence: 0.95,
     anomalyZ: 3.0,
     seasonality: "weekly", // "weekly" | "none"
-    model: "auto", // "auto" | "seasonal_naive" | "drift" | "arima"
+    model: "auto", // "auto" | "seasonal_naive" | "drift" | "ses" | "holt" | "arima" | "ensemble"
+    transform: "auto", // "auto" | "none" | "log1p"
+    interval: "auto", // "auto" | "normal" | "empirical"
   });
 
   const [loading, setLoading] = useState(false);
@@ -2028,6 +2049,15 @@ export default function ForecastIntelligence({ dailyData }) {
   }, [dailyData, config.target]);
 
   const isCountTarget = config.target === "executions";
+  const targetTitle = isCountTarget ? "Usage" : "Spend";
+  const targetNoun = isCountTarget ? "usage" : "spend";
+  const driversTitle = isCountTarget ? "Usage drivers and stability" : "Spend drivers and stability";
+  const variabilityLabel = isCountTarget ? "Usage variability signals" : "Spend variability signals";
+  const zeroLabel = isCountTarget ? "Zero-usage days" : "Zero-spend days";
+  const shiftTitle = isCountTarget ? "Meaningful shifts in usage" : "Meaningful shifts in spend";
+  const actualLabel = isCountTarget ? "Actual usage" : "Actual spend";
+  const analysis = result?.analysis;
+  const modelLeaderboard = result?.modelLeaderboard || [];
 
   const chartData = useMemo(() => {
     if (!result?.historyDates?.length) return [];
@@ -2059,7 +2089,7 @@ export default function ForecastIntelligence({ dailyData }) {
 
     // For a simple sum interval, assume independent daily errors:
     // sd(sum) ≈ sqrt(h) * sigma
-    const sigma = Number(result.sigma) || 0;
+    const sigma = Number(result.interval?.sigma ?? result.sigma) || 0;
     const z = config.confidence >= 0.99 ? 2.576 : 1.96;
     const sdSum = Math.sqrt(horizon) * sigma;
 
@@ -2068,6 +2098,22 @@ export default function ForecastIntelligence({ dailyData }) {
 
     return { sum, lowerSum, upperSum, horizon };
   }, [result, config.confidence]);
+
+  const friendlyNotes = useMemo(() => {
+    const notes = result?.notes || [];
+    if (!notes.length) return [];
+
+    return notes.map((note) => {
+      if (note.startsWith("Weekly seasonality: ON")) return "Weekly pattern: on";
+      if (note.startsWith("Weekly seasonality: OFF")) return "Weekly pattern: off";
+      if (note.startsWith("Variance stabilization: log1p")) return "Spike smoothing: on";
+      if (note.startsWith("Variance stabilization: none")) return "Spike smoothing: off";
+      if (note.startsWith("Interval method:")) {
+        return `Range style:${note.replace("Interval method:", "")}`;
+      }
+      return note;
+    });
+  }, [result?.notes]);
 
   useEffect(() => {
     const run = async () => {
@@ -2086,6 +2132,8 @@ export default function ForecastIntelligence({ dailyData }) {
         anomalyZ: config.anomalyZ,
         seasonality: config.seasonality,
         model: config.model,
+        transform: config.transform,
+        interval: config.interval,
       });
 
       const cached = await getCachedForecastV2(cacheKey);
@@ -2126,6 +2174,8 @@ export default function ForecastIntelligence({ dailyData }) {
         anomalyZ: config.anomalyZ,
         seasonality: config.seasonality,
         model: config.model,
+        transform: config.transform,
+        interval: config.interval,
       });
     };
 
@@ -2137,6 +2187,8 @@ export default function ForecastIntelligence({ dailyData }) {
     config.anomalyZ,
     config.seasonality,
     config.model,
+    config.transform,
+    config.interval,
     series,
   ]);
 
@@ -2144,7 +2196,7 @@ export default function ForecastIntelligence({ dailyData }) {
     if (!result?.forecastDates?.length) return;
 
     const rows = [
-      ["Date", "Forecast", "CI Lower", "CI Upper"],
+      ["Date", "Forecast", "Low estimate", "High estimate"],
       ...result.forecastDates.map((d, i) => [
         d,
         (result.forecast?.[i] ?? "").toFixed?.(4) ?? result.forecast?.[i] ?? "",
@@ -2171,10 +2223,10 @@ export default function ForecastIntelligence({ dailyData }) {
           </div>
           <div>
             <h3 className="font-extrabold text-gray-900">
-              Forecast Intelligence (Separate Module)
+              {targetTitle} Forecast Insights
             </h3>
             <p className="text-xs text-gray-500">
-              Auto-selects the best model via backtesting (Seasonal Naive / Drift / ARIMA when available).
+              Projects future {targetNoun} and highlights unusual days based on historical usage.
             </p>
           </div>
         </div>
@@ -2184,64 +2236,67 @@ export default function ForecastIntelligence({ dailyData }) {
             onClick={exportForecastCsv}
             disabled={!result?.forecastDates?.length}
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 hover:bg-white text-gray-700 text-sm font-bold disabled:opacity-50"
-            title="Export this forecast to CSV"
+            title="Download forecast CSV"
           >
-            <Download size={16} /> Export Forecast
+            <Download size={16} /> Download forecast
           </button>
         </div>
       </div>
 
       {/* Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-8 gap-3 mb-6">
         <label className="md:col-span-1 flex items-center gap-2 text-sm text-gray-600">
           <input
             type="checkbox"
             checked={config.enabled}
             onChange={(e) => setConfig((p) => ({ ...p, enabled: e.target.checked }))}
           />
-          Enabled
+          Show
         </label>
 
         <div className="md:col-span-1">
-          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Target</div>
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Forecast focus</div>
           <select
             className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
             value={config.target}
             onChange={(e) => setConfig((p) => ({ ...p, target: e.target.value }))}
           >
-            <option value="cost">Daily Cost</option>
-            <option value="executions">Daily Executions</option>
+            <option value="cost">Daily spend</option>
+            <option value="executions">Daily usage (runs)</option>
           </select>
         </div>
 
         <div className="md:col-span-1">
-          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Model</div>
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Forecast style</div>
           <select
             className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
             value={config.model}
             onChange={(e) => setConfig((p) => ({ ...p, model: e.target.value }))}
           >
-            <option value="auto">Auto (Best Backtest)</option>
-            <option value="seasonal_naive">Seasonal Naive</option>
-            <option value="drift">Drift</option>
-            <option value="arima">ARIMA</option>
+            <option value="auto">Auto (recommended)</option>
+            <option value="ensemble">Blended (balanced)</option>
+            <option value="seasonal_naive">Repeat last week</option>
+            <option value="drift">Trend line</option>
+            <option value="ses">Smooth level</option>
+            <option value="holt">Smooth trend</option>
+            <option value="arima">Advanced</option>
           </select>
         </div>
 
         <div className="md:col-span-1">
-          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Seasonality</div>
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Weekly pattern</div>
           <select
             className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
             value={config.seasonality}
             onChange={(e) => setConfig((p) => ({ ...p, seasonality: e.target.value }))}
           >
-            <option value="weekly">Weekly</option>
-            <option value="none">None</option>
+            <option value="weekly">On</option>
+            <option value="none">Off</option>
           </select>
         </div>
 
         <div className="md:col-span-1">
-          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Horizon (days)</div>
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Days ahead</div>
           <input
             type="number"
             min="1"
@@ -2253,15 +2308,41 @@ export default function ForecastIntelligence({ dailyData }) {
         </div>
 
         <div className="md:col-span-1">
-          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Confidence</div>
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Range confidence</div>
           <select
             className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
             value={config.confidence}
             onChange={(e) => setConfig((p) => ({ ...p, confidence: Number(e.target.value) }))}
           >
-            <option value={0.9}>90%</option>
-            <option value={0.95}>95%</option>
-            <option value={0.99}>99%</option>
+            <option value={0.9}>90% range</option>
+            <option value={0.95}>95% range</option>
+            <option value={0.99}>99% range</option>
+          </select>
+        </div>
+
+        <div className="md:col-span-1">
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Smooth spikes</div>
+          <select
+            className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
+            value={config.transform}
+            onChange={(e) => setConfig((p) => ({ ...p, transform: e.target.value }))}
+          >
+            <option value="auto">Auto</option>
+            <option value="none">Off</option>
+            <option value="log1p">On (log)</option>
+          </select>
+        </div>
+
+        <div className="md:col-span-1">
+          <div className="text-xs font-bold text-gray-500 uppercase mb-1">Range style</div>
+          <select
+            className="w-full px-2 py-2 border border-gray-200 rounded-md text-sm bg-white"
+            value={config.interval}
+            onChange={(e) => setConfig((p) => ({ ...p, interval: e.target.value }))}
+          >
+            <option value="auto">Auto</option>
+            <option value="normal">Standard</option>
+            <option value="empirical">Data-driven</option>
           </select>
         </div>
       </div>
@@ -2276,7 +2357,7 @@ export default function ForecastIntelligence({ dailyData }) {
         )}
         {result?.selectedModel?.label && (
           <span className="text-gray-700 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg">
-            <span className="font-bold">Selected:</span>{" "}
+            <span className="font-bold">Best fit:</span>{" "}
             {result.selectedModel.label}
             {result.selectedModel?.params &&
               Object.keys(result.selectedModel.params).length > 0 && (
@@ -2291,7 +2372,7 @@ export default function ForecastIntelligence({ dailyData }) {
         )}
         {!!result?.notes?.length && (
           <span className="text-gray-500">
-            {result.notes.join(" • ")}
+            {friendlyNotes.join(" • ")}
           </span>
         )}
       </div>
@@ -2301,7 +2382,7 @@ export default function ForecastIntelligence({ dailyData }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="text-xs font-bold text-gray-500 uppercase mb-1">
-              Next {summary.horizon} days (expected)
+              Expected total next {summary.horizon} days
             </div>
             <div className="text-2xl font-extrabold text-gray-900">
               {isCountTarget ? formatNumber(summary.sum) : formatMoney(summary.sum)}
@@ -2310,7 +2391,7 @@ export default function ForecastIntelligence({ dailyData }) {
 
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="text-xs font-bold text-gray-500 uppercase mb-1">
-              Lower bound (~{Math.round(config.confidence * 100)}%)
+              Low estimate (~{Math.round(config.confidence * 100)}%)
             </div>
             <div className="text-2xl font-extrabold text-gray-900">
               {isCountTarget ? formatNumber(summary.lowerSum) : formatMoney(summary.lowerSum)}
@@ -2319,7 +2400,7 @@ export default function ForecastIntelligence({ dailyData }) {
 
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="text-xs font-bold text-gray-500 uppercase mb-1">
-              Upper bound (~{Math.round(config.confidence * 100)}%)
+              High estimate (~{Math.round(config.confidence * 100)}%)
             </div>
             <div className="text-2xl font-extrabold text-gray-900">
               {isCountTarget ? formatNumber(summary.upperSum) : formatMoney(summary.upperSum)}
@@ -2332,18 +2413,36 @@ export default function ForecastIntelligence({ dailyData }) {
       <div className="bg-white border border-gray-200 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="font-bold text-gray-800 flex items-center gap-2">
-            <Activity size={18} className="text-gray-400" /> Forecast (with prediction interval)
+            <Activity size={18} className="text-gray-400" /> Expected range
           </div>
           {result?.backtest?.metrics && (
             <div className="text-xs text-gray-500">
-              Backtest ({result.backtest.window}d):{" "}
+              Accuracy check ({result.backtest.window}d, lower is better):{" "}
               <span className="font-bold">
-                RMSE {isCountTarget ? formatNumber(result.backtest.metrics.rmse) : formatMoney(result.backtest.metrics.rmse)}
+                Error {isCountTarget ? formatNumber(result.backtest.metrics.rmse) : formatMoney(result.backtest.metrics.rmse)}
               </span>{" "}
-              • SMAPE{" "}
+              • Avg miss{" "}
+              <span className="font-bold">
+                {isCountTarget ? formatNumber(result.backtest.metrics.mae) : formatMoney(result.backtest.metrics.mae)}
+              </span>{" "}
+              • Percent miss{" "}
               <span className="font-bold">
                 {Number(result.backtest.metrics.smape)?.toFixed?.(1) ?? "—"}%
-              </span>
+              </span>{" "}
+              {result.backtest.metrics.mase != null && (
+                <>
+                  • Relative miss <span className="font-bold">{formatStat(result.backtest.metrics.mase, 2)}</span>
+                </>
+              )}
+              {result.analysis?.residualDiagnostics?.intervalCoverage != null && (
+                <>
+                  {" "}
+                  • Range hit{" "}
+                  <span className="font-bold">
+                    {formatPercent(result.analysis.residualDiagnostics.intervalCoverage, 0)}
+                  </span>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -2362,12 +2461,12 @@ export default function ForecastIntelligence({ dailyData }) {
                   const num = Number(value);
                   const label =
                     name === "actual"
-                      ? "Actual"
+                      ? actualLabel
                       : name === "forecast"
                       ? "Forecast"
                       : name === "lower"
-                      ? "CI Lower"
-                      : "CI Upper";
+                      ? "Low estimate"
+                      : "High estimate";
 
                   return [
                     isCountTarget ? formatNumber(num) : formatMoney(num),
@@ -2376,20 +2475,270 @@ export default function ForecastIntelligence({ dailyData }) {
                 }}
               />
               <Legend />
-              <Bar dataKey="actual" name="Actual" radius={[4, 4, 0, 0]} />
-              <Area dataKey="upper" name="CI Upper" type="monotone" dot={false} />
-              <Area dataKey="lower" name="CI Lower" type="monotone" dot={false} />
+              <Bar dataKey="actual" name={actualLabel} radius={[4, 4, 0, 0]} />
+              <Area dataKey="upper" name="High estimate" type="monotone" dot={false} />
+              <Area dataKey="lower" name="Low estimate" type="monotone" dot={false} />
               <Line dataKey="forecast" name="Forecast" type="monotone" strokeWidth={2} dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
       </div>
 
+      {/* Model leaderboard */}
+      {!!modelLeaderboard.length && (
+        <div className="mt-6 bg-white border border-gray-200 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="font-bold text-gray-800">Forecast method comparison</div>
+            <div className="text-xs text-gray-500">Ranked by accuracy (lower is better)</div>
+          </div>
+          <div className="overflow-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
+                <tr>
+                  <th className="px-3 py-2">Method</th>
+                  <th className="px-3 py-2 text-right">Error score</th>
+                  <th className="px-3 py-2 text-right">Avg miss</th>
+                  <th className="px-3 py-2 text-right">Percent miss</th>
+                  <th className="px-3 py-2 text-right">Relative miss</th>
+                  <th className="px-3 py-2 text-right">Blend weight</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {modelLeaderboard.slice(0, 8).map((m) => {
+                  const isSelected = m.id === result?.selectedModel?.id;
+                  return (
+                    <tr key={m.id} className={isSelected ? "bg-emerald-50" : "hover:bg-gray-50"}>
+                      <td className="px-3 py-2 font-medium text-gray-900">
+                        {m.label}
+                        {isSelected && <span className="ml-2 text-xs text-emerald-700 font-bold">Best fit</span>}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-xs">
+                        {isCountTarget ? formatNumber(m.metrics?.rmse) : formatMoney(m.metrics?.rmse)}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-xs">
+                        {isCountTarget ? formatNumber(m.metrics?.mae) : formatMoney(m.metrics?.mae)}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-xs">
+                        {m.metrics?.smape != null ? `${Number(m.metrics.smape).toFixed(1)}%` : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-xs">
+                        {m.metrics?.mase != null ? formatStat(m.metrics.mase, 2) : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-xs">
+                        {m.weight != null ? formatPercent(m.weight, 0) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Statistical deep dive */}
+      {analysis && (
+        <div className="mt-6 bg-white border border-gray-200 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="font-bold text-gray-800">{driversTitle}</div>
+            <div className="text-xs text-gray-500">
+              {analysis.summary?.n ?? "—"} data points • {analysis.summary?.missingDays ?? "—"} filled days
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div className="text-xs font-bold text-gray-500 uppercase mb-1">Daily trend (change per day)</div>
+              <div className="text-lg font-extrabold text-gray-900">
+                {formatSignedValue(analysis.trend?.slopePerDay, isCountTarget)}
+              </div>
+              <div className="text-xs text-gray-500">
+                Fit score (0-1) {formatStat(analysis.trend?.r2, 2)} • Strength {formatStat(analysis.trend?.tStat, 2)}
+              </div>
+            </div>
+
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div className="text-xs font-bold text-gray-500 uppercase mb-1">Last 7 days vs prior 7 days</div>
+              <div className="text-lg font-extrabold text-gray-900">
+                {formatPercent(analysis.trend?.pctChange7, 1)}
+              </div>
+              <div className="text-xs text-gray-500">
+                Last {isCountTarget ? formatNumber(analysis.trend?.last7Mean) : formatMoney(analysis.trend?.last7Mean)} •
+                Prev {isCountTarget ? formatNumber(analysis.trend?.prev7Mean) : formatMoney(analysis.trend?.prev7Mean)}
+              </div>
+            </div>
+
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div className="text-xs font-bold text-gray-500 uppercase mb-1">Weekly pattern strength</div>
+              <div className="text-lg font-extrabold text-gray-900">
+                {formatPercent(analysis.seasonality?.strength, 0)}
+              </div>
+              <div className="text-xs text-gray-500">
+                Weekly swing{" "}
+                {isCountTarget
+                  ? formatNumber(analysis.seasonality?.amplitude)
+                  : formatMoney(analysis.seasonality?.amplitude)}
+              </div>
+            </div>
+
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div className="text-xs font-bold text-gray-500 uppercase mb-1">Volatility (last 7 days)</div>
+              <div className="text-lg font-extrabold text-gray-900">
+                {isCountTarget
+                  ? formatNumber(analysis.volatility?.rollingStd7Last)
+                  : formatMoney(analysis.volatility?.rollingStd7Last)}
+              </div>
+              <div className="text-xs text-gray-500">
+                Avg{" "}
+                {isCountTarget
+                  ? formatNumber(analysis.volatility?.rollingStd7Mean)
+                  : formatMoney(analysis.volatility?.rollingStd7Mean)}{" "}
+                • vs overall {formatStat(analysis.volatility?.volRatio, 2)}x
+              </div>
+            </div>
+
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div className="text-xs font-bold text-gray-500 uppercase mb-1">{variabilityLabel}</div>
+              <div className="text-lg font-extrabold text-gray-900">
+                Skew (spikes) {formatStat(analysis.summary?.skewness, 2)}
+              </div>
+              <div className="text-xs text-gray-500">
+                Tail risk {formatStat(analysis.summary?.kurtosis, 2)} • Spread {formatStat(analysis.summary?.cv, 2)}
+              </div>
+            </div>
+
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div className="text-xs font-bold text-gray-500 uppercase mb-1">Data coverage</div>
+              <div className="text-lg font-extrabold text-gray-900">
+                {zeroLabel} {formatPercent(analysis.summary?.zeroRatio, 0)}
+              </div>
+              <div className="text-xs text-gray-500">
+                Missing {analysis.summary?.missingDays ?? "—"} • Range {analysis.summary?.startDate} to{" "}
+                {analysis.summary?.endDate}
+              </div>
+            </div>
+          </div>
+
+          {analysis.residualDiagnostics && (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <div className="text-xs font-bold text-gray-500 uppercase mb-1">Avg error</div>
+                <div className="text-lg font-extrabold text-gray-900">
+                  {formatSignedValue(analysis.residualDiagnostics.bias, isCountTarget)}
+                </div>
+                <div className="text-xs text-gray-500">Forecast bias</div>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <div className="text-xs font-bold text-gray-500 uppercase mb-1">Relative error</div>
+                <div className="text-lg font-extrabold text-gray-900">
+                  {analysis.residualDiagnostics.mase != null
+                    ? formatStat(analysis.residualDiagnostics.mase, 2)
+                    : "—"}
+                </div>
+                <div className="text-xs text-gray-500">Lower is better</div>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <div className="text-xs font-bold text-gray-500 uppercase mb-1">Pattern check</div>
+                <div className="text-lg font-extrabold text-gray-900">
+                  {formatStat(analysis.residualDiagnostics.durbinWatson, 2)}
+                </div>
+                <div className="text-xs text-gray-500">
+                  Pattern score {formatStat(analysis.residualDiagnostics.ljungBoxQ, 1)}
+                </div>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <div className="text-xs font-bold text-gray-500 uppercase mb-1">Distribution check</div>
+                <div className="text-lg font-extrabold text-gray-900">
+                  {formatStat(analysis.residualDiagnostics.jarqueBera, 2)}
+                </div>
+                <div className="text-xs text-gray-500">Consistency score</div>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <div className="text-xs font-bold text-gray-500 uppercase mb-1">Range hit rate</div>
+                <div className="text-lg font-extrabold text-gray-900">
+                  {formatPercent(analysis.residualDiagnostics.intervalCoverage, 0)}
+                </div>
+                <div className="text-xs text-gray-500">Actuals inside range</div>
+              </div>
+            </div>
+          )}
+
+          {!!analysis.autocorrelation?.acf?.length && (
+            <div className="mt-4">
+              <div className="text-xs font-bold text-gray-500 uppercase mb-2">
+                Recurring pattern by lag (days 1-{analysis.autocorrelation.maxLag})
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {analysis.autocorrelation.acf.map((value, index) => {
+                  const width = Math.min(100, Math.abs(value) * 100);
+                  return (
+                    <div key={index} className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 w-8">L{index + 1}</span>
+                      <div className="flex-1 bg-gray-100 rounded h-2 overflow-hidden">
+                        <div
+                          className={`h-2 ${value >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
+                          style={{ width: `${width}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-mono text-gray-600 w-12 text-right">
+                        {formatStat(value, 2)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {!!analysis.changePoints?.length && (
+            <div className="mt-4">
+              <div className="text-xs font-bold text-gray-500 uppercase mb-2">{shiftTitle}</div>
+              <div className="overflow-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-3 py-2">Date</th>
+                      <th className="px-3 py-2 text-right">Before avg</th>
+                      <th className="px-3 py-2 text-right">After avg</th>
+                      <th className="px-3 py-2 text-right">Change</th>
+                      <th className="px-3 py-2 text-right">Signal strength</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {analysis.changePoints.map((point) => (
+                      <tr key={`${point.date}_${point.index}`} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 font-medium text-gray-900">{point.date}</td>
+                        <td className="px-3 py-2 text-right font-mono text-xs">
+                          {isCountTarget ? formatNumber(point.beforeMean) : formatMoney(point.beforeMean)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-xs">
+                          {isCountTarget ? formatNumber(point.afterMean) : formatMoney(point.afterMean)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-xs">
+                          {formatSignedValue(point.delta, isCountTarget)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-xs">
+                          {formatStat(point.z, 2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Anomalies */}
       {!!result?.anomalies?.length && (
         <div className="mt-6 bg-white border border-gray-200 rounded-xl p-4">
           <div className="font-bold text-gray-800 mb-3">
-            Anomalies (|z| ≥ {config.anomalyZ})
+            Unusual days (outside expected range)
           </div>
           <div className="overflow-auto max-h-[260px]">
             <table className="w-full text-sm text-left">
@@ -2397,8 +2746,8 @@ export default function ForecastIntelligence({ dailyData }) {
                 <tr>
                   <th className="px-3 py-2">Date</th>
                   <th className="px-3 py-2 text-right">Actual</th>
-                  <th className="px-3 py-2 text-right">Expected</th>
-                  <th className="px-3 py-2 text-right">z</th>
+                  <th className="px-3 py-2 text-right">Expected level</th>
+                  <th className="px-3 py-2 text-right">Signal strength</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -2420,7 +2769,7 @@ export default function ForecastIntelligence({ dailyData }) {
             </table>
           </div>
           <div className="text-xs text-gray-500 mt-2">
-            Tip: anomalies often correspond to deployments, batch jobs, retries, or one-off high-volume days.
+            Tip: review launches, policy changes, or one-off events around these dates.
           </div>
         </div>
       )}
@@ -2502,12 +2851,12 @@ export default function PineconeSection({ data, setData, pricing, calculatedCost
           <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
               <Database size={20} />
           </div>
-          <h2 className="text-lg font-bold text-gray-800">3. Pinecone Memory (Vector DB)</h2>
+          <h2 className="text-lg font-bold text-gray-800">3. Memory store (Pinecone)</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div className="md:col-span-1">
-            <label className={labelClass}>Plan Tier</label>
+            <label className={labelClass}>Plan</label>
             <select 
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white/50 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
                 value={plan} 
@@ -2533,7 +2882,7 @@ export default function PineconeSection({ data, setData, pricing, calculatedCost
         </div>
 
         <div>
-            <label className={labelClass}>Read Units</label>
+            <label className={labelClass}>Read activity (units)</label>
             <div className="relative">
                 <ArrowUpCircle size={16} className={iconClass} />
                 <input 
@@ -2546,7 +2895,7 @@ export default function PineconeSection({ data, setData, pricing, calculatedCost
         </div>
 
         <div>
-            <label className={labelClass}>Write Units</label>
+            <label className={labelClass}>Write activity (units)</label>
             <div className="relative">
                 <ArrowDownCircle size={16} className={iconClass} />
                 <input 
@@ -2561,21 +2910,22 @@ export default function PineconeSection({ data, setData, pricing, calculatedCost
 
       <div className="bg-gray-50/50 border border-gray-100 p-4 rounded-xl flex justify-between items-center">
         <div>
-           <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Billing Details</div>
+           <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Billing summary</div>
            <div className="text-sm text-gray-600">
-              Raw Usage: <span className="font-mono">${rawUsageCost.toFixed(4)}</span>
+              Usage charges: <span className="font-mono">${rawUsageCost.toFixed(4)}</span>
               <span className="mx-2 text-gray-300">|</span>
-              Plan Floor: <span className="font-mono">${planDetails.min.toFixed(2)}</span>
+              Plan minimum: <span className="font-mono">${planDetails.min.toFixed(2)}</span>
            </div>
         </div>
         <div className="text-right">
-          <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Database Cost</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Monthly cost</div>
           <div className="text-2xl font-extrabold text-gray-900">${calculatedCost.toFixed(2)}</div>
         </div>
       </div>
     </div>
   );
 }
+
 
 
 ================================================================================
@@ -2643,8 +2993,8 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
                 {/* Header */}
                 <div className="flex justify-between items-center p-6 border-b shrink-0 bg-white">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-900">Global Pricing Configuration</h2>
-                        <p className="text-sm text-gray-500">Update the base rates used for all calculations.</p>
+                        <h2 className="text-xl font-bold text-gray-900">Pricing assumptions</h2>
+                        <p className="text-sm text-gray-500">Update the rates used to estimate costs.</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={20} /></button>
                 </div>
@@ -2655,19 +3005,19 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
                         onClick={() => setActiveTab('openai')}
                         className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'openai' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                     >
-                        <Zap size={18} /> OpenAI Intelligence
+                        <Zap size={18} /> AI models (OpenAI)
                     </button>
                     <button
                         onClick={() => setActiveTab('n8n')}
                         className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'n8n' ? 'border-orange-600 text-orange-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                     >
-                        <Cpu size={18} /> N8n Infrastructure
+                        <Cpu size={18} /> Automation platform (N8n)
                     </button>
                     <button
                         onClick={() => setActiveTab('pinecone')}
                         className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'pinecone' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                     >
-                        <Database size={18} /> Pinecone Memory
+                        <Database size={18} /> Memory store (Pinecone)
                     </button>
                 </div>
 
@@ -2677,11 +3027,14 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
                     {/* --- OPENAI TAB --- */}
                     {activeTab === 'openai' && (
                         <div>
+                            <div className="text-xs text-gray-500 mb-3">
+                                Rates are per 1M text units.
+                            </div>
                             <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-4 mb-2 px-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                <div>Model Name</div>
-                                <div>Input ($)</div>
-                                <div className="text-blue-600">Cached ($)</div>
-                                <div>Output ($)</div>
+                                <div>Model</div>
+                                <div>Input rate</div>
+                                <div className="text-blue-600">Cached rate</div>
+                                <div>Output rate</div>
                             </div>
                             <div className="space-y-2">
                                 {Object.entries(tempPricing.openai).map(([key, data]) => (
@@ -2722,29 +3075,29 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
                                     </h3>
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Monthly Price ($)</label>
-                                            <input
-                                                type="number"
-                                                className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
-                                                value={planData.price}
-                                                onChange={(e) => handleN8nChange(planKey, 'price', e.target.value)}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Included Executions</label>
-                                            <input
-                                                type="number"
-                                                className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
-                                                value={planData.limit}
-                                                onChange={(e) => handleN8nChange(planKey, 'limit', e.target.value)}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Yearly Discount (0-1)</label>
-                                            <input
-                                                type="number" step="0.01" max="1"
-                                                className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
-                                                value={planData.yearlyDiscountPercent}
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Monthly price</label>
+                                        <input
+                                            type="number"
+                                            className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                                            value={planData.price}
+                                            onChange={(e) => handleN8nChange(planKey, 'price', e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Included runs</label>
+                                        <input
+                                            type="number"
+                                            className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                                            value={planData.limit}
+                                            onChange={(e) => handleN8nChange(planKey, 'limit', e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Annual discount (0-1)</label>
+                                        <input
+                                            type="number" step="0.01" max="1"
+                                            className="border rounded w-full p-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                                            value={planData.yearlyDiscountPercent}
                                                 onChange={(e) => handleN8nChange(planKey, 'yearlyDiscountPercent', e.target.value)}
                                             />
                                             <div className="text-xs text-gray-400 mt-1">
@@ -2762,10 +3115,10 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
                         <div className="space-y-6">
                             {/* Usage Rates */}
                             <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                                <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">Serverless Usage Rates</h3>
+                                <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">Usage rates</h3>
                                 <div className="grid grid-cols-3 gap-6">
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Storage ($ per GB/mo)</label>
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Storage ($ per GB/month)</label>
                                         <input
                                             type="number" step="0.01"
                                             className="border rounded w-full p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -2796,13 +3149,13 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
 
                             {/* Plan Minimums */}
                             <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                                <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">Plan Base Fees / Minimums</h3>
+                                <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">Plan minimums</h3>
                                 <div className="space-y-4">
                                     {Object.entries(tempPricing.pinecone.plans).map(([planKey, planData]) => (
                                         <div key={planKey} className="flex items-center justify-between">
                                             <span className="text-sm font-medium text-gray-700">{planData.label}</span>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm text-gray-500">Min Monthly Cost: $</span>
+                                                <span className="text-sm text-gray-500">Minimum monthly: $</span>
                                                 <input
                                                     type="number"
                                                     className="border rounded w-32 p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -2822,13 +3175,14 @@ export default function SettingsModal({ isOpen, onClose, pricing, setPricing }) 
                 {/* Footer Actions */}
                 <div className="p-4 border-t bg-white shrink-0">
                     <button onClick={save} className="w-full bg-slate-900 text-white py-3 rounded-lg hover:bg-slate-800 flex items-center justify-center gap-2 font-bold shadow-md transition-all active:scale-[0.99]">
-                        <Save size={18} /> Save Global Settings
+                        <Save size={18} /> Save pricing
                     </button>
                 </div>
             </div>
         </div>
     );
 }
+
 
 
 ================================================================================
@@ -2850,6 +3204,8 @@ export function createForecastV2CacheKey({
   anomalyZ,
   seasonality,
   model,
+  transform,
+  interval,
 }) {
   const head = dates?.[0] || "";
   const tail = dates?.[dates.length - 1] || "";
@@ -2873,6 +3229,8 @@ export function createForecastV2CacheKey({
     `z=${anomalyZ}`,
     `s=${seasonality}`,
     `m=${model}`,
+    `t=${transform}`,
+    `i=${interval}`,
     `hash=${hash >>> 0}`,
   ].join("|");
 }
@@ -3033,6 +3391,232 @@ export const calculatePineconeCost = (data, pricing) => {
 
 
 ================================================================================
+📄 FILE: src/utils/excelExport.js
+================================================================================
+
+import XLSX from 'xlsx-js-style';
+
+/**
+ * World-Class Excel Export Utility
+ * Uses xlsx-js-style to apply corporate branding, colors, and formatting.
+ */
+
+// --- 1. THEME CONFIGURATION ---
+const STYLES = {
+    header: {
+        fill: { fgColor: { rgb: "4F46E5" } }, // Indigo 600
+        font: { color: { rgb: "FFFFFF" }, bold: true, sz: 12 },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: { bottom: { style: "thin", color: { rgb: "000000" } } }
+    },
+    userHeader: {
+        fill: { fgColor: { rgb: "E0E7FF" } }, // Indigo 100
+        font: { color: { rgb: "3730A3" }, bold: true, sz: 11 }, // Indigo 800
+        alignment: { horizontal: "left" }
+    },
+    rowTotal: {
+        fill: { fgColor: { rgb: "F3F4F6" } }, // Gray 100
+        font: { bold: true },
+        border: { top: { style: "thin" } }
+    },
+    grandTotal: {
+        fill: { fgColor: { rgb: "10B981" } }, // Emerald 500
+        font: { color: { rgb: "FFFFFF" }, bold: true, sz: 14 },
+        alignment: { horizontal: "right" }
+    },
+    currency: {
+        numFmt: "$#,##0.00" // Excel Native Accounting Format
+    },
+    number: {
+        numFmt: "#,##0"
+    }
+};
+
+const sanitizeSheetName = (name) => {
+    return (name || "Unknown").replace(/[\/\\\?\*\[\]]/g, "_").substring(0, 30);
+};
+
+export const generateExcelReport = (rawData, filename = 'AI_Cost_Report.xlsx') => {
+    if (!rawData || rawData.length === 0) {
+        alert("No data to export");
+        return;
+    }
+
+    // --- 2. DATA PROCESSING (Hierarchy Building) ---
+    const hierarchy = {};
+
+    rawData.forEach(row => {
+        const dept = row.dpt || "Unassigned";
+        const user = row.usr || "Unknown";
+        const node = row.nd || "Unknown Node";
+        const model = row.mdl || "Unknown";
+        const key = `${node} (${model})`;
+
+        if (!hierarchy[dept]) hierarchy[dept] = {};
+        if (!hierarchy[dept][user]) hierarchy[dept][user] = {};
+        if (!hierarchy[dept][user][key]) {
+            hierarchy[dept][user][key] = {
+                nodeName: node,
+                model: model,
+                inputTokens: 0,
+                outputTokens: 0,
+                cost: 0,
+                count: 0
+            };
+        }
+
+        const entry = hierarchy[dept][user][key];
+        entry.inputTokens += (row.ti || 0);
+        entry.outputTokens += (row.to || 0);
+        entry.cost += (row.c || 0);
+        entry.count += 1;
+    });
+
+    const wb = XLSX.utils.book_new();
+
+    // --- 3. SHEET GENERATION LOOP ---
+    Object.keys(hierarchy).sort().forEach(deptName => {
+        const deptData = hierarchy[deptName];
+        
+        // We build the sheet cell by cell to control styles strictly
+        const wsData = [];
+        
+        let deptTotalCost = 0;
+
+        // Iterate Users
+        Object.keys(deptData).sort().forEach(userName => {
+            const userNodes = deptData[userName];
+
+            // A. User Header Block
+            wsData.push([
+                { v: `USER: ${userName.toUpperCase()}`, s: STYLES.userHeader }, 
+                { v: "", s: STYLES.userHeader }, 
+                { v: "", s: STYLES.userHeader }, 
+                { v: "", s: STYLES.userHeader }, 
+                { v: "", s: STYLES.userHeader }, 
+                { v: "", s: STYLES.userHeader }
+            ]);
+
+            // B. Column Headers
+            const headers = ["Workflow Step", "Model", "Runs", "Input Tokens", "Output Tokens", "Cost ($)"];
+            wsData.push(headers.map(h => ({ v: h, s: STYLES.header })));
+
+            let userTotalCost = 0;
+            let userTotalInput = 0;
+            let userTotalOutput = 0;
+            let userTotalRuns = 0;
+
+            // C. Data Rows
+            Object.values(userNodes)
+                .sort((a, b) => b.cost - a.cost)
+                .forEach(node => {
+                    wsData.push([
+                        { v: node.nodeName },
+                        { v: node.model },
+                        { v: node.count, s: STYLES.number },
+                        { v: node.inputTokens, s: STYLES.number },
+                        { v: node.outputTokens, s: STYLES.number },
+                        { v: node.cost, s: STYLES.currency }
+                    ]);
+
+                    userTotalCost += node.cost;
+                    userTotalInput += node.inputTokens;
+                    userTotalOutput += node.outputTokens;
+                    userTotalRuns += node.count;
+                });
+
+            // D. User Total Row
+            wsData.push([
+                { v: "TOTAL FOR " + userName, s: STYLES.rowTotal },
+                { v: "", s: STYLES.rowTotal },
+                { v: userTotalRuns, s: { ...STYLES.rowTotal, ...STYLES.number } },
+                { v: userTotalInput, s: { ...STYLES.rowTotal, ...STYLES.number } },
+                { v: userTotalOutput, s: { ...STYLES.rowTotal, ...STYLES.number } },
+                { v: userTotalCost, s: { ...STYLES.rowTotal, ...STYLES.currency } }
+            ]);
+
+            // Spacing
+            wsData.push([{}, {}, {}, {}, {}, {}]); 
+            
+            deptTotalCost += userTotalCost;
+        });
+
+        // E. Department Grand Total
+        wsData.push([
+            { v: "DEPARTMENT GRAND TOTAL", s: STYLES.grandTotal },
+            { v: "", s: STYLES.grandTotal },
+            { v: "", s: STYLES.grandTotal },
+            { v: "", s: STYLES.grandTotal },
+            { v: "", s: STYLES.grandTotal },
+            { v: deptTotalCost, s: { ...STYLES.grandTotal, ...STYLES.currency } }
+        ]);
+
+        // Create Sheet
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+        // Column Widths (Visual Polish)
+        ws['!cols'] = [
+            { wch: 40 }, // Node Name
+            { wch: 25 }, // Model
+            { wch: 12 }, // Runs
+            { wch: 15 }, // Input
+            { wch: 15 }, // Output
+            { wch: 18 }  // Cost
+        ];
+
+        // Merge cells for visual flair (optional, but looks nice for headers)
+        // Note: Managing merges in a dynamic loop is complex, skipping for stability 
+        // but the colors will do the heavy lifting.
+
+        XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(deptName));
+    });
+
+    // --- 4. SUMMARY SHEET (Cover Page) ---
+    // We create a dashboard-style cover sheet
+    const summaryData = [];
+    
+    // Title
+    summaryData.push([{ v: "AI SPEND EXECUTIVE REPORT", s: { font: { bold: true, sz: 18, color: { rgb: "4F46E5" } } } }]);
+    summaryData.push([{ v: `Generated: ${new Date().toLocaleString()}`, s: { font: { italic: true, color: { rgb: "6B7280" } } } }]);
+    summaryData.push([]); // Spacer
+
+    // Table Header
+    summaryData.push([
+        { v: "Department", s: STYLES.header },
+        { v: "Total Spend", s: STYLES.header }
+    ]);
+
+    let grandTotal = 0;
+    Object.keys(hierarchy).sort().forEach(dept => {
+        let dCost = 0;
+        Object.values(hierarchy[dept]).forEach(u => {
+            Object.values(u).forEach(n => dCost += n.cost);
+        });
+        grandTotal += dCost;
+        
+        summaryData.push([
+            { v: dept, s: { font: { bold: true } } },
+            { v: dCost, s: STYLES.currency }
+        ]);
+    });
+
+    // Grand Total Line
+    summaryData.push([
+        { v: "TOTAL ORGANIZATION SPEND", s: STYLES.grandTotal },
+        { v: grandTotal, s: { ...STYLES.grandTotal, ...STYLES.currency } }
+    ]);
+
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+    wsSummary['!cols'] = [{ wch: 35 }, { wch: 20 }];
+    
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Executive Summary", true);
+
+    // Write File
+    XLSX.writeFile(wb, filename);
+};
+
+
+================================================================================
 📄 FILE: src/workers/forecastIntelligenceWorker.js
 ================================================================================
 
@@ -3051,7 +3635,9 @@ import * as ss from "simple-statistics";
  *   confidence: number,        // e.g. 0.95
  *   anomalyZ: number,          // e.g. 3.0
  *   seasonality: "weekly" | "none",
- *   model: "auto" | "seasonal_naive" | "drift" | "arima"
+ *   model: "auto" | "seasonal_naive" | "drift" | "ses" | "holt" | "arima" | "ensemble",
+ *   transform: "auto" | "none" | "log1p",
+ *   interval: "auto" | "normal" | "empirical"
  * }
  *
  * Outputs:
@@ -3065,9 +3651,13 @@ import * as ss from "simple-statistics";
  *   ciLower: number[],
  *   ciUpper: number[],
  *   sigma: number,
+ *   interval: { method: string, sigma: number, robustSigma: number, quantiles: { low, high }, z: number },
+ *   transform: { setting: string, method: string },
  *   backtest: { window: number, dates: string[], actual: number[], predicted: number[], metrics: {...} },
  *   anomalies: Array<{ index:number, date:string, actual:number, expected:number, z:number }>,
- *   notes: string[]
+ *   notes: string[],
+ *   analysis: {...},
+ *   modelLeaderboard: Array<{ id, label, metrics, weight }>
  * }
  */
 
@@ -3116,6 +3706,7 @@ function buildContinuousDailySeries(inputDates, inputValues) {
 
   const continuousDates = [];
   const continuousValues = [];
+  let missingCount = 0;
 
   let cursor = new Date(start);
   const endDate = new Date(end);
@@ -3123,12 +3714,14 @@ function buildContinuousDailySeries(inputDates, inputValues) {
   // Move day by day (UTC-safe if input is YYYY-MM-DD)
   while (cursor <= endDate) {
     const key = formatYYYYMMDD(cursor);
+    const hasValue = dateToValueMap.has(key);
     continuousDates.push(key);
-    continuousValues.push(safeFiniteNumber(dateToValueMap.get(key) ?? 0));
+    if (!hasValue) missingCount += 1;
+    continuousValues.push(safeFiniteNumber(hasValue ? dateToValueMap.get(key) : 0));
     cursor = addDaysUTC(key, 1);
   }
 
-  return { continuousDates, continuousValues };
+  return { continuousDates, continuousValues, missingCount };
 }
 
 function dayOfWeekIndexUTC(dateStrYYYYMMDD) {
@@ -3178,15 +3771,16 @@ function addWeeklyReseasonalize(dates, values, seasonalEffect) {
 }
 
 /** Metrics that behave better than MAPE when there are zeros. */
-function computeErrorMetrics(actual, predicted) {
+function computeErrorMetrics(actual, predicted, baselineMAE = null) {
   const n = Math.min(actual.length, predicted.length);
   if (n === 0) {
-    return { mae: null, rmse: null, smape: null };
+    return { mae: null, rmse: null, smape: null, bias: null, mase: null };
   }
 
   let absSum = 0;
   let sqSum = 0;
   let smapeSum = 0;
+  let errSum = 0;
 
   for (let i = 0; i < n; i++) {
     const a = safeFiniteNumber(actual[i]);
@@ -3195,16 +3789,316 @@ function computeErrorMetrics(actual, predicted) {
 
     absSum += Math.abs(err);
     sqSum += err * err;
+    errSum += err;
 
     const denom = Math.abs(a) + Math.abs(p);
     smapeSum += denom === 0 ? 0 : (2 * Math.abs(err)) / denom;
   }
 
+  const mae = absSum / n;
+  const rmse = Math.sqrt(sqSum / n);
+  const smape = (smapeSum / n) * 100;
+
   return {
-    mae: absSum / n,
-    rmse: Math.sqrt(sqSum / n),
-    smape: (smapeSum / n) * 100, // percentage
+    mae,
+    rmse,
+    smape,
+    bias: errSum / n,
+    mase: baselineMAE && baselineMAE > 0 ? mae / baselineMAE : null,
   };
+}
+
+function quantile(values, q) {
+  if (!Array.isArray(values) || values.length === 0) return null;
+  const sorted = values.map(safeFiniteNumber).slice().sort((a, b) => a - b);
+  const pos = (sorted.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  if (sorted[base + 1] !== undefined) {
+    return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
+  }
+  return sorted[base];
+}
+
+function computeSkewness(values) {
+  const n = values.length;
+  if (n < 3) return null;
+  const mean = ss.mean(values);
+  const std = ss.sampleStandardDeviation(values) || 0;
+  if (std === 0) return 0;
+
+  let m3 = 0;
+  for (let i = 0; i < n; i++) {
+    m3 += Math.pow(values[i] - mean, 3);
+  }
+  m3 /= n;
+  return m3 / Math.pow(std, 3);
+}
+
+function computeKurtosis(values) {
+  const n = values.length;
+  if (n < 4) return null;
+  const mean = ss.mean(values);
+  const std = ss.sampleStandardDeviation(values) || 0;
+  if (std === 0) return 0;
+
+  let m4 = 0;
+  for (let i = 0; i < n; i++) {
+    m4 += Math.pow(values[i] - mean, 4);
+  }
+  m4 /= n;
+  return m4 / Math.pow(std, 4) - 3;
+}
+
+function computeSummaryStats(values) {
+  if (!Array.isArray(values) || values.length === 0) return null;
+  const v = values.map(safeFiniteNumber);
+  const mean = ss.mean(v);
+  const median = ss.median(v);
+  const min = ss.min(v);
+  const max = ss.max(v);
+  const variance = ss.variance(v) ?? 0;
+  const std = ss.sampleStandardDeviation(v) || 0;
+  const cv = mean !== 0 ? std / Math.abs(mean) : null;
+  const p10 = quantile(v, 0.1);
+  const p90 = quantile(v, 0.9);
+  const iqr = (quantile(v, 0.75) ?? 0) - (quantile(v, 0.25) ?? 0);
+  const zeroCount = v.filter((x) => x === 0).length;
+  const zeroRatio = v.length ? zeroCount / v.length : null;
+  const skewness = computeSkewness(v);
+  const kurtosis = computeKurtosis(v);
+
+  return {
+    n: v.length,
+    mean,
+    median,
+    min,
+    max,
+    variance,
+    std,
+    cv,
+    p10,
+    p90,
+    iqr,
+    zeroRatio,
+    skewness,
+    kurtosis,
+  };
+}
+
+function computeAutocorrelation(values, maxLag) {
+  const n = values.length;
+  if (n === 0) return [];
+  const mean = ss.mean(values);
+  const denom = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0);
+  if (denom === 0) return new Array(maxLag).fill(0);
+
+  const acf = [];
+  for (let lag = 1; lag <= maxLag; lag++) {
+    let num = 0;
+    for (let i = lag; i < n; i++) {
+      num += (values[i] - mean) * (values[i - lag] - mean);
+    }
+    acf.push(num / denom);
+  }
+  return acf;
+}
+
+function computeRollingStd(values, window) {
+  if (values.length < window) return [];
+  const rolling = [];
+  for (let i = window - 1; i < values.length; i++) {
+    const slice = values.slice(i - window + 1, i + 1);
+    rolling.push(ss.sampleStandardDeviation(slice) || 0);
+  }
+  return rolling;
+}
+
+function computeTrendStats(values) {
+  const n = values.length;
+  if (n < 3) {
+    const fallback = safeFiniteNumber(values[values.length - 1] ?? 0);
+    return {
+      slope: 0,
+      intercept: fallback,
+      r2: null,
+      tStat: null,
+      line: () => fallback,
+    };
+  }
+
+  const points = values.map((v, i) => [i, safeFiniteNumber(v)]);
+  const lr = ss.linearRegression(points);
+  const line = ss.linearRegressionLine(lr);
+  const r2 = ss.rSquared(points, line);
+
+  const xBar = (n - 1) / 2;
+  let sxx = 0;
+  let sse = 0;
+  for (let i = 0; i < n; i++) {
+    const x = i;
+    const y = values[i];
+    const yHat = line(x);
+    sxx += Math.pow(x - xBar, 2);
+    sse += Math.pow(y - yHat, 2);
+  }
+
+  const se = n > 2 && sxx > 0 ? Math.sqrt(sse / (n - 2) / sxx) : null;
+  const tStat = se ? lr.m / se : null;
+
+  return {
+    slope: lr.m,
+    intercept: lr.b,
+    r2,
+    tStat,
+    line,
+  };
+}
+
+function computeSeasonalityStrength(dates, values, trendLine, seasonalEffect) {
+  if (!dates.length || !values.length || seasonalEffect.length !== 7) {
+    return { strength: 0, amplitude: 0 };
+  }
+
+  const detrended = values.map((v, i) => safeFiniteNumber(v) - trendLine(i));
+  const varianceDetrended = ss.variance(detrended) || 0;
+
+  if (varianceDetrended === 0) {
+    return { strength: 0, amplitude: 0 };
+  }
+
+  const residuals = detrended.map((v, i) => {
+    const dow = dayOfWeekIndexUTC(dates[i]);
+    return v - seasonalEffect[dow];
+  });
+
+  const residualVar = ss.variance(residuals) || 0;
+  const strength = Math.max(0, 1 - residualVar / varianceDetrended);
+  const amplitude = Math.max(...seasonalEffect) - Math.min(...seasonalEffect);
+
+  return { strength, amplitude };
+}
+
+function computeNaiveScale(values, seasonLength) {
+  if (values.length <= seasonLength) return null;
+  let sum = 0;
+  let count = 0;
+  for (let i = seasonLength; i < values.length; i++) {
+    sum += Math.abs(values[i] - values[i - seasonLength]);
+    count += 1;
+  }
+  return count ? sum / count : null;
+}
+
+function computeRecentChange(values, window = 7) {
+  if (values.length < window * 2) return null;
+  const last = ss.mean(values.slice(-window));
+  const prev = ss.mean(values.slice(-window * 2, -window));
+  const pctChange = prev !== 0 ? (last - prev) / Math.abs(prev) : null;
+  return { last, prev, pctChange, delta: last - prev };
+}
+
+function detectChangePoints(dates, values, window = 7, zThreshold = 2.5, maxPoints = 5) {
+  const n = values.length;
+  if (n < window * 2 + 1) return [];
+  const candidates = [];
+
+  for (let i = window; i <= n - window; i++) {
+    const before = values.slice(i - window, i);
+    const after = values.slice(i, i + window);
+    const meanBefore = ss.mean(before);
+    const meanAfter = ss.mean(after);
+    const pooled = before.concat(after);
+    const std = ss.sampleStandardDeviation(pooled) || 0;
+    const delta = meanAfter - meanBefore;
+    const z = std > 0 ? delta / std : 0;
+
+    if (Math.abs(z) >= zThreshold) {
+      candidates.push({
+        index: i,
+        date: dates[i],
+        delta,
+        z,
+        beforeMean: meanBefore,
+        afterMean: meanAfter,
+      });
+    }
+  }
+
+  candidates.sort((a, b) => Math.abs(b.z) - Math.abs(a.z));
+  const selected = [];
+  for (const cand of candidates) {
+    if (selected.every((s) => Math.abs(s.index - cand.index) > window)) {
+      selected.push(cand);
+    }
+    if (selected.length >= maxPoints) break;
+  }
+
+  selected.sort((a, b) => a.index - b.index);
+  return selected;
+}
+
+function applyTransform(values, method) {
+  if (method === "log1p") {
+    return values.map((v) => Math.log1p(Math.max(0, safeFiniteNumber(v))));
+  }
+  return values.map(safeFiniteNumber);
+}
+
+function invertTransform(values, method) {
+  if (method === "log1p") {
+    return values.map((v) => Math.expm1(safeFiniteNumber(v)));
+  }
+  return values.map(safeFiniteNumber);
+}
+
+function resolveTransformMethod(setting, summary) {
+  if (setting === "log1p") return "log1p";
+  if (setting === "none") return "none";
+  if (!summary) return "none";
+
+  if (summary.min < 0) return "none";
+  if (summary.skewness != null && summary.skewness > 1.25) return "log1p";
+  if (summary.cv != null && summary.cv > 1.5) return "log1p";
+
+  return "none";
+}
+
+function computeDurbinWatson(residuals) {
+  const n = residuals.length;
+  if (n < 2) return null;
+  let num = 0;
+  let denom = 0;
+  for (let i = 1; i < n; i++) {
+    const diff = residuals[i] - residuals[i - 1];
+    num += diff * diff;
+  }
+  for (let i = 0; i < n; i++) {
+    denom += residuals[i] * residuals[i];
+  }
+  return denom === 0 ? null : num / denom;
+}
+
+function computeJarqueBera(residuals) {
+  const n = residuals.length;
+  if (n < 5) return null;
+  const skew = computeSkewness(residuals) ?? 0;
+  const kurt = computeKurtosis(residuals) ?? 0;
+  return (n / 6) * (Math.pow(skew, 2) + (Math.pow(kurt, 2) / 4));
+}
+
+function computeLjungBox(residuals, maxLag = 10) {
+  const n = residuals.length;
+  if (n < 3) return { q: null, lags: 0 };
+  const lagCount = Math.min(maxLag, n - 1);
+  const acf = computeAutocorrelation(residuals, lagCount);
+  let q = 0;
+  for (let k = 1; k <= lagCount; k++) {
+    const rho = acf[k - 1] ?? 0;
+    q += (rho * rho) / (n - k);
+  }
+  q *= n * (n + 2);
+  return { q, lags: lagCount };
 }
 
 function seasonalNaiveForecast(historyValues, horizon, seasonLength = 7) {
@@ -3233,6 +4127,35 @@ function driftForecast(historyValues, horizon) {
 
   const forecast = new Array(horizon).fill(0).map((_, k) => last + slope * (k + 1));
   return forecast.map(clampNonNegative);
+}
+
+function sesForecast(historyValues, horizon, alpha = 0.2) {
+  const y = historyValues.map(safeFiniteNumber);
+  if (y.length === 0) return new Array(horizon).fill(0);
+
+  let level = y[0];
+  for (let i = 1; i < y.length; i++) {
+    level = alpha * y[i] + (1 - alpha) * level;
+  }
+
+  return new Array(horizon).fill(level).map(clampNonNegative);
+}
+
+function holtForecast(historyValues, horizon, alpha = 0.3, beta = 0.1) {
+  const y = historyValues.map(safeFiniteNumber);
+  if (y.length === 0) return new Array(horizon).fill(0);
+
+  let level = y[0];
+  let trend = y.length > 1 ? y[1] - y[0] : 0;
+
+  for (let i = 1; i < y.length; i++) {
+    const value = y[i];
+    const prevLevel = level;
+    level = alpha * value + (1 - alpha) * (level + trend);
+    trend = beta * (level - prevLevel) + (1 - beta) * trend;
+  }
+
+  return new Array(horizon).fill(0).map((_, k) => clampNonNegative(level + (k + 1) * trend));
 }
 
 /**
@@ -3355,6 +4278,8 @@ self.onmessage = async (event) => {
     anomalyZ = 3.0,
     seasonality = "weekly",
     model = "auto",
+    transform = "auto",
+    interval = "auto",
   } = event.data || {};
 
   try {
@@ -3368,23 +4293,42 @@ self.onmessage = async (event) => {
     const z = zValueForConfidence(selectedConfidence);
 
     // 1) Continuous daily series
-    const { continuousDates, continuousValues } = buildContinuousDailySeries(dates, values);
-
-    // 2) Seasonality handling
-    let seasonalEffect = new Array(7).fill(0);
     const notes = [];
+    const { continuousDates, continuousValues, missingCount } = buildContinuousDailySeries(dates, values);
+    const lastHistoryDate = continuousDates[continuousDates.length - 1];
 
-    let modelInputValues = continuousValues.map(safeFiniteNumber);
-    if (seasonality === "weekly") {
-      const seasonal = computeWeeklySeasonality(continuousDates, continuousValues);
-      seasonalEffect = seasonal.seasonalEffect;
-      modelInputValues = applyWeeklyDeseasonalize(continuousDates, continuousValues, seasonalEffect);
+    const summaryStats = computeSummaryStats(continuousValues);
+    const transformMethod = resolveTransformMethod(transform, summaryStats);
+    if (transformMethod === "log1p") {
+      notes.push("Variance stabilization: log1p");
+    } else {
+      notes.push("Variance stabilization: none");
+    }
+
+    const seasonalityEnabled = seasonality === "weekly";
+    const seasonLength = seasonalityEnabled ? 7 : 1;
+
+    if (seasonalityEnabled) {
       notes.push("Weekly seasonality: ON (day-of-week adjustment)");
     } else {
       notes.push("Weekly seasonality: OFF");
     }
 
-    // 3) Backtest window selection
+    const seasonalEffectOriginal = seasonalityEnabled
+      ? computeWeeklySeasonality(continuousDates, continuousValues).seasonalEffect
+      : new Array(7).fill(0);
+
+    const transformedValues = applyTransform(continuousValues, transformMethod);
+    const seasonalEffectModel = seasonalityEnabled
+      ? computeWeeklySeasonality(continuousDates, transformedValues).seasonalEffect
+      : new Array(7).fill(0);
+
+    let modelInputValues = transformedValues;
+    if (seasonalityEnabled) {
+      modelInputValues = applyWeeklyDeseasonalize(continuousDates, transformedValues, seasonalEffectModel);
+    }
+
+    // 2) Backtest window selection
     const n = modelInputValues.length;
     const preferredWindow = Math.min(28, Math.max(7, Math.floor(n * 0.2)));
     const backtestWindow = Math.min(preferredWindow, n - 2); // keep at least 2 points in train
@@ -3392,64 +4336,144 @@ self.onmessage = async (event) => {
 
     const train = modelInputValues.slice(0, trainSize);
     const validation = modelInputValues.slice(trainSize);
+    const trainTransformed = transformedValues.slice(0, trainSize);
+
+    const actualVal = continuousValues.slice(trainSize).map(safeFiniteNumber);
+    const validationDates = continuousDates.slice(trainSize);
+    const baselineMAE = computeNaiveScale(continuousValues, seasonLength);
 
     // Utility to reseasonalize predictions if needed
     const reseasonalizeFuture = (startDate, forecastValues) => {
-      if (seasonality !== "weekly") return forecastValues.map(clampNonNegative);
-
-      const futureDates = Array.from({ length: forecastValues.length }, (_, k) =>
-        formatYYYYMMDD(addDaysUTC(startDate, k + 1))
-      );
-
-      const reseasonalized = addWeeklyReseasonalize(futureDates, forecastValues, seasonalEffect);
-      return reseasonalized.map(clampNonNegative);
+      let adjusted = forecastValues.map(safeFiniteNumber);
+      if (seasonalityEnabled) {
+        const futureDates = Array.from({ length: adjusted.length }, (_, k) =>
+          formatYYYYMMDD(addDaysUTC(startDate, k + 1))
+        );
+        adjusted = addWeeklyReseasonalize(futureDates, adjusted, seasonalEffectModel);
+      }
+      return invertTransform(adjusted, transformMethod).map(clampNonNegative);
     };
 
-    const reseasonalizeValidation = (validationDates, predValues) => {
-      if (seasonality !== "weekly") return predValues.map(clampNonNegative);
-      const reseasonalized = addWeeklyReseasonalize(validationDates, predValues, seasonalEffect);
-      return reseasonalized.map(clampNonNegative);
+    const reseasonalizeValidation = (datesForValidation, predValues) => {
+      let adjusted = predValues.map(safeFiniteNumber);
+      if (seasonalityEnabled) {
+        adjusted = addWeeklyReseasonalize(datesForValidation, adjusted, seasonalEffectModel);
+      }
+      return invertTransform(adjusted, transformMethod).map(clampNonNegative);
     };
 
-    // 4) Candidate models
+    // 3) Candidate models
     const candidateResults = [];
+    const scoreFromMetrics = (metrics) =>
+      (metrics.rmse ?? 1e18) * 1e6 + (metrics.mae ?? 1e18) + (metrics.smape ?? 1e18);
+    const addCandidate = (candidate) => {
+      candidate.score = scoreFromMetrics(candidate.metrics || {});
+      candidateResults.push(candidate);
+    };
 
-    // Seasonal naive (on the *original* scale, but apply on deseasonalized for fairness)
+    // Seasonal naive
     {
-      const valPredDeseasonal = seasonalNaiveForecast(train, backtestWindow, 7);
-      const valPred = reseasonalizeValidation(continuousDates.slice(trainSize), valPredDeseasonal);
-      const actualVal = continuousValues.slice(trainSize).map(safeFiniteNumber);
-      const metrics = computeErrorMetrics(actualVal, valPred);
+      const valPredTransformed = seasonalNaiveForecast(trainTransformed, backtestWindow, seasonLength);
+      const valPred = invertTransform(valPredTransformed, transformMethod).map(clampNonNegative);
+      const metrics = computeErrorMetrics(actualVal, valPred, baselineMAE);
+      const futurePredTransformed = seasonalNaiveForecast(transformedValues, sanitizedHorizon, seasonLength);
+      const forecastFuture = invertTransform(futurePredTransformed, transformMethod).map(clampNonNegative);
 
-      candidateResults.push({
+      addCandidate({
         id: "seasonal_naive",
-        label: "Seasonal Naive (Weekly)",
-        params: { seasonLength: 7 },
+        label: seasonalityEnabled ? "Seasonal Naive (Weekly)" : "Naive (Last Value)",
+        params: { seasonLength },
         validationPred: valPred,
         metrics,
-        score: (metrics.rmse ?? 1e18) * 1e6 + (metrics.mae ?? 1e18),
-        forecastFuture: null,
-        forecastFutureDeseasonal: seasonalNaiveForecast(modelInputValues, sanitizedHorizon, 7),
+        forecastFuture,
+        forecastFutureDeseasonal: futurePredTransformed,
       });
     }
 
     // Drift
     {
       const valPredDeseasonal = driftForecast(train, backtestWindow);
-      const valPred = reseasonalizeValidation(continuousDates.slice(trainSize), valPredDeseasonal);
-      const actualVal = continuousValues.slice(trainSize).map(safeFiniteNumber);
-      const metrics = computeErrorMetrics(actualVal, valPred);
+      const valPred = reseasonalizeValidation(validationDates, valPredDeseasonal);
+      const metrics = computeErrorMetrics(actualVal, valPred, baselineMAE);
+      const forecastFutureDeseasonal = driftForecast(modelInputValues, sanitizedHorizon);
+      const forecastFuture = reseasonalizeFuture(lastHistoryDate, forecastFutureDeseasonal);
 
-      candidateResults.push({
+      addCandidate({
         id: "drift",
         label: "Drift (Trend)",
         params: {},
         validationPred: valPred,
         metrics,
-        score: (metrics.rmse ?? 1e18) * 1e6 + (metrics.mae ?? 1e18),
-        forecastFuture: null,
-        forecastFutureDeseasonal: driftForecast(modelInputValues, sanitizedHorizon),
+        forecastFuture,
+        forecastFutureDeseasonal,
       });
+    }
+
+    // SES
+    {
+      const alphaGrid = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
+      let best = null;
+
+      for (const alpha of alphaGrid) {
+        const valPredDeseasonal = sesForecast(train, backtestWindow, alpha);
+        const valPred = reseasonalizeValidation(validationDates, valPredDeseasonal);
+        const metrics = computeErrorMetrics(actualVal, valPred, baselineMAE);
+        const score = scoreFromMetrics(metrics);
+
+        if (!best || score < best.score) {
+          best = { alpha, valPred, metrics, score };
+        }
+      }
+
+      if (best) {
+        const forecastFutureDeseasonal = sesForecast(modelInputValues, sanitizedHorizon, best.alpha);
+        const forecastFuture = reseasonalizeFuture(lastHistoryDate, forecastFutureDeseasonal);
+
+        addCandidate({
+          id: "ses",
+          label: "SES (Level)",
+          params: { alpha: Number(best.alpha.toFixed(2)) },
+          validationPred: best.valPred,
+          metrics: best.metrics,
+          forecastFuture,
+          forecastFutureDeseasonal,
+        });
+      }
+    }
+
+    // Holt
+    {
+      const alphaGrid = [0.2, 0.4, 0.6, 0.8];
+      const betaGrid = [0.1, 0.2, 0.4, 0.6];
+      let best = null;
+
+      for (const alpha of alphaGrid) {
+        for (const beta of betaGrid) {
+          const valPredDeseasonal = holtForecast(train, backtestWindow, alpha, beta);
+          const valPred = reseasonalizeValidation(validationDates, valPredDeseasonal);
+          const metrics = computeErrorMetrics(actualVal, valPred, baselineMAE);
+          const score = scoreFromMetrics(metrics);
+
+          if (!best || score < best.score) {
+            best = { alpha, beta, valPred, metrics, score };
+          }
+        }
+      }
+
+      if (best) {
+        const forecastFutureDeseasonal = holtForecast(modelInputValues, sanitizedHorizon, best.alpha, best.beta);
+        const forecastFuture = reseasonalizeFuture(lastHistoryDate, forecastFutureDeseasonal);
+
+        addCandidate({
+          id: "holt",
+          label: "Holt (Trend + Level)",
+          params: { alpha: Number(best.alpha.toFixed(2)), beta: Number(best.beta.toFixed(2)) },
+          validationPred: best.valPred,
+          metrics: best.metrics,
+          forecastFuture,
+          forecastFutureDeseasonal,
+        });
+      }
     }
 
     // ARIMA (optional / best when it works)
@@ -3458,22 +4482,17 @@ self.onmessage = async (event) => {
       try {
         const arimaResult = await arimaAutoForecast(train, validation, sanitizedHorizon, 3, 2, 3);
 
-        const valPred = reseasonalizeValidation(
-          continuousDates.slice(trainSize),
-          arimaResult.validationPred
-        );
+        const valPred = reseasonalizeValidation(validationDates, arimaResult.validationPred);
+        const metrics = computeErrorMetrics(actualVal, valPred, baselineMAE);
+        const forecastFuture = reseasonalizeFuture(lastHistoryDate, arimaResult.futurePred);
 
-        const actualVal = continuousValues.slice(trainSize).map(safeFiniteNumber);
-        const metrics = computeErrorMetrics(actualVal, valPred);
-
-        candidateResults.push({
+        addCandidate({
           id: "arima",
           label: "ARIMA (Auto Grid Search)",
           params: arimaResult.params,
           validationPred: valPred,
           metrics,
-          score: (metrics.rmse ?? 1e18) * 1e6 + (metrics.mae ?? 1e18),
-          forecastFuture: null,
+          forecastFuture,
           forecastFutureDeseasonal: arimaResult.futurePred,
         });
       } catch (err) {
@@ -3481,11 +4500,68 @@ self.onmessage = async (event) => {
       }
     }
 
-    // 5) Pick best
+    // Ensemble weighting
+    const weightable = candidateResults.filter((c) => Number.isFinite(c.metrics?.rmse));
+    let weightSum = 0;
+    for (const c of weightable) {
+      const w = 1 / Math.max(c.metrics.rmse, 1e-9);
+      c.weight = w;
+      weightSum += w;
+    }
+    if (weightSum > 0) {
+      for (const c of weightable) {
+        c.weight = c.weight / weightSum;
+      }
+    } else {
+      for (const c of weightable) {
+        c.weight = null;
+      }
+    }
+
+    const ensembleCandidates = weightable.filter(
+      (c) =>
+        Array.isArray(c.validationPred) &&
+        c.validationPred.length === backtestWindow &&
+        Array.isArray(c.forecastFuture) &&
+        c.forecastFuture.length === sanitizedHorizon &&
+        (c.weight ?? 0) > 0
+    );
+
+    if (ensembleCandidates.length >= 2) {
+      const ensembleWeightSum = ensembleCandidates.reduce((sum, c) => sum + (c.weight ?? 0), 0);
+      const normalizedWeight = (c) => (ensembleWeightSum > 0 ? (c.weight ?? 0) / ensembleWeightSum : 0);
+      const ensembleValPred = new Array(backtestWindow).fill(0);
+      const ensembleFuture = new Array(sanitizedHorizon).fill(0);
+
+      for (const c of ensembleCandidates) {
+        const w = normalizedWeight(c);
+        for (let i = 0; i < backtestWindow; i++) {
+          ensembleValPred[i] += w * safeFiniteNumber(c.validationPred[i]);
+        }
+        for (let i = 0; i < sanitizedHorizon; i++) {
+          ensembleFuture[i] += w * safeFiniteNumber(c.forecastFuture[i]);
+        }
+      }
+
+      const metrics = computeErrorMetrics(actualVal, ensembleValPred, baselineMAE);
+
+      addCandidate({
+        id: "ensemble",
+        label: "Ensemble (Weighted)",
+        params: { models: ensembleCandidates.length },
+        validationPred: ensembleValPred,
+        metrics,
+        forecastFuture: ensembleFuture,
+        forecastFutureDeseasonal: null,
+      });
+    }
+
+    // Pick best
     let chosen = null;
     if (model !== "auto") {
-      chosen = candidateResults.find((c) => c.id === model) ?? candidateResults[0];
-    } else {
+      chosen = candidateResults.find((c) => c.id === model) ?? null;
+    }
+    if (!chosen) {
       chosen = candidateResults.reduce((best, cur) => (!best || cur.score < best.score ? cur : best), null);
     }
 
@@ -3495,25 +4571,147 @@ self.onmessage = async (event) => {
       notes.push(`ARIMA note: ${arimaFailureReason}`);
     }
 
-    // 6) Final future forecast on original scale (reseasonalize if needed)
-    const lastHistoryDate = continuousDates[continuousDates.length - 1];
-    const futureForecast = reseasonalizeFuture(lastHistoryDate, chosen.forecastFutureDeseasonal);
+    const futureForecast = Array.isArray(chosen.forecastFuture)
+      ? chosen.forecastFuture
+      : reseasonalizeFuture(lastHistoryDate, chosen.forecastFutureDeseasonal || []);
 
-    // 7) Interval estimation from backtest residuals
-    const actualBacktest = continuousValues.slice(trainSize).map(safeFiniteNumber);
+    // 4) Interval estimation from backtest residuals
+    const actualBacktest = actualVal;
     const predBacktest = chosen.validationPred.map(safeFiniteNumber);
     const backtestResiduals = actualBacktest.map((a, i) => a - (predBacktest[i] ?? 0));
     const sigma = Math.max(1e-9, ss.sampleStandardDeviation(backtestResiduals));
+    const robustSigma = Math.max(1e-9, 1.4826 * (ss.medianAbsoluteDeviation(backtestResiduals) || 0));
+    const residualSkew = computeSkewness(backtestResiduals);
+    const residualKurtosis = computeKurtosis(backtestResiduals);
+    const jbStat = computeJarqueBera(backtestResiduals);
+    const alpha = 1 - selectedConfidence;
+    const qLow = quantile(backtestResiduals, alpha / 2);
+    const qHigh = quantile(backtestResiduals, 1 - alpha / 2);
 
-    const ciLower = futureForecast.map((y) => clampNonNegative(y - z * sigma));
-    const ciUpper = futureForecast.map((y) => clampNonNegative(y + z * sigma));
+    let intervalMethod = interval;
+    if (intervalMethod === "auto") {
+      if (jbStat != null && jbStat > 5.99) {
+        intervalMethod = "empirical";
+      } else if (residualSkew != null && Math.abs(residualSkew) > 1) {
+        intervalMethod = "empirical";
+      } else if (residualKurtosis != null && Math.abs(residualKurtosis) > 1) {
+        intervalMethod = "empirical";
+      } else {
+        intervalMethod = "normal";
+      }
+    }
+    if (intervalMethod === "empirical" && (qLow == null || qHigh == null)) {
+      intervalMethod = "normal";
+    }
+
+    const sigmaForInterval = Math.max(sigma, robustSigma);
+    let lowerOffset = -z * sigmaForInterval;
+    let upperOffset = z * sigmaForInterval;
+
+    if (intervalMethod === "empirical") {
+      lowerOffset = qLow ?? lowerOffset;
+      upperOffset = qHigh ?? upperOffset;
+    }
+
+    const ciLower = futureForecast.map((y) => clampNonNegative(y + lowerOffset));
+    const ciUpper = futureForecast.map((y) => clampNonNegative(y + upperOffset));
+
+    const coverageCount = actualBacktest.reduce((sum, actual, i) => {
+      const lower = (predBacktest[i] ?? 0) + lowerOffset;
+      const upper = (predBacktest[i] ?? 0) + upperOffset;
+      return sum + (actual >= lower && actual <= upper ? 1 : 0);
+    }, 0);
+    const intervalCoverage = actualBacktest.length ? coverageCount / actualBacktest.length : null;
+
+    notes.push(`Interval method: ${intervalMethod}`);
 
     const forecastDates = Array.from({ length: sanitizedHorizon }, (_, k) =>
       formatYYYYMMDD(addDaysUTC(lastHistoryDate, k + 1))
     );
 
-    // 8) Anomalies (robust, weekly-expectation based)
+    // 5) Anomalies (robust, weekly-expectation based)
     const { anomalies } = detectAnomalies(continuousDates, continuousValues, Number(anomalyZ) || 3.0);
+
+    const trendStats = computeTrendStats(continuousValues);
+    const recentChange = computeRecentChange(continuousValues, 7);
+    const seasonalityStrength = seasonalityEnabled
+      ? computeSeasonalityStrength(continuousDates, continuousValues, trendStats.line, seasonalEffectOriginal)
+      : { strength: 0, amplitude: 0 };
+
+    const rollingStd7 = computeRollingStd(continuousValues, 7);
+    const rollingStd7Mean = rollingStd7.length ? ss.mean(rollingStd7) : null;
+    const rollingStd7Last = rollingStd7.length ? rollingStd7[rollingStd7.length - 1] : null;
+    const overallStd = summaryStats?.std ?? (ss.sampleStandardDeviation(continuousValues) || 0);
+    const volRatio = rollingStd7Last != null && overallStd ? rollingStd7Last / overallStd : null;
+
+    const acf = computeAutocorrelation(
+      continuousValues,
+      Math.min(14, Math.max(1, continuousValues.length - 1))
+    );
+
+    const changePoints = detectChangePoints(continuousDates, continuousValues, 7, 2.5, 5);
+    const ljungBox = computeLjungBox(backtestResiduals, Math.min(10, backtestResiduals.length - 1));
+    const residualDiagnostics = {
+      bias: chosen.metrics?.bias ?? null,
+      rmse: chosen.metrics?.rmse ?? null,
+      mae: chosen.metrics?.mae ?? null,
+      smape: chosen.metrics?.smape ?? null,
+      mase: chosen.metrics?.mase ?? null,
+      durbinWatson: computeDurbinWatson(backtestResiduals),
+      jarqueBera: jbStat,
+      ljungBoxQ: ljungBox.q,
+      ljungBoxLags: ljungBox.lags,
+      intervalCoverage,
+    };
+
+    const analysis = {
+      summary: {
+        ...(summaryStats || {}),
+        missingDays: missingCount,
+        startDate: continuousDates[0],
+        endDate: continuousDates[continuousDates.length - 1],
+      },
+      trend: {
+        slopePerDay: trendStats.slope,
+        r2: trendStats.r2,
+        tStat: trendStats.tStat,
+        direction:
+          trendStats.slope > 0.0001 ? "up" : trendStats.slope < -0.0001 ? "down" : "flat",
+        last7Mean: recentChange?.last ?? null,
+        prev7Mean: recentChange?.prev ?? null,
+        pctChange7: recentChange?.pctChange ?? null,
+      },
+      seasonality: {
+        enabled: seasonalityEnabled,
+        strength: seasonalityStrength.strength,
+        amplitude: seasonalityStrength.amplitude,
+        weeklyProfile: seasonalEffectOriginal,
+      },
+      volatility: {
+        rollingStd7Mean,
+        rollingStd7Last,
+        volRatio,
+        robustSigma: Math.max(1e-9, 1.4826 * (ss.medianAbsoluteDeviation(continuousValues) || 0)),
+      },
+      autocorrelation: {
+        maxLag: acf.length,
+        acf,
+        acfAt7: acf[6] ?? null,
+      },
+      changePoints,
+      residualDiagnostics,
+    };
+
+    const modelLeaderboard = candidateResults
+      .map((c) => ({
+        id: c.id,
+        label: c.label,
+        params: c.params,
+        metrics: c.metrics,
+        score: c.score,
+        weight: c.weight ?? null,
+      }))
+      .sort((a, b) => (a.score ?? 1e18) - (b.score ?? 1e18));
 
     self.postMessage({
       requestId,
@@ -3524,16 +4722,29 @@ self.onmessage = async (event) => {
       forecast: futureForecast,
       ciLower,
       ciUpper,
-      sigma,
+      sigma: sigmaForInterval,
+      interval: {
+        method: intervalMethod,
+        sigma: sigmaForInterval,
+        robustSigma,
+        quantiles: { low: qLow, high: qHigh },
+        z,
+      },
+      transform: {
+        setting: transform,
+        method: transformMethod,
+      },
       backtest: {
         window: backtestWindow,
-        dates: continuousDates.slice(trainSize),
+        dates: validationDates,
         actual: actualBacktest.map(clampNonNegative),
         predicted: predBacktest.map(clampNonNegative),
         metrics: chosen.metrics,
       },
       anomalies,
       notes,
+      analysis,
+      modelLeaderboard,
     });
   } catch (err) {
     self.postMessage({
