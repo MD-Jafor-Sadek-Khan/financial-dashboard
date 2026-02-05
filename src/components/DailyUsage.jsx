@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+import Papa from 'papaparse';
 import { createSeriesCacheKey, getCachedForecast, setCachedForecast } from "../utils/forecastCache";
 import ForecastIntelligence from "./ForecastIntelligence";
 import { generateExcelReport } from '../utils/excelExport';
@@ -20,10 +21,12 @@ export default function DailyUsage({ pricing = {} }) {
     const [fileName, setFileName] = useState(null);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState(null);
+    const [importWarning, setImportWarning] = useState(null);
     const [rowCount, setRowCount] = useState(0);
 
     // Filter & Data States
     const rawDataRef = useRef([]);
+    const uploadIdRef = useRef(0);
     const [stats, setStats] = useState(null);
 
     const [availableOptions, setAvailableOptions] = useState({
@@ -190,31 +193,120 @@ export default function DailyUsage({ pricing = {} }) {
         }));
     };
 
-    const optimizeRow = (row, pricing) => {
-        if (!pricing || !pricing.openai) return null;
+    const normalizeHeader = (value) => String(value || '')
+        .replace(/^\uFEFF/, '')
+        .trim()
+        .toLowerCase()
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ');
 
-        const findKey = (obj, target) => Object.keys(obj).find(k => k.toLowerCase().trim() === target.toLowerCase().trim());
+    const HEADER_ALIASES = {
+        time: ['time', 'timestamp', 'date', 'date time', 'datetime'],
+        model: ['model', 'model name', 'ai model', 'openai model'],
+        department: ['department', 'dept', 'team', 'cost center'],
+        user: ['user', 'person', 'owner', 'email', 'user name', 'username'],
+        executionId: ['execution id', 'execution', 'run id', 'run', 'unique', 'unique key', 'unique id'],
+        node: ['node name', 'node', 'workflow step', 'workflow node', 'step'],
+        inputTokens: ['input tokens', 'input', 'prompt tokens', 'input tokens count', 'inputtokens'],
+        outputTokens: ['output tokens', 'output', 'completion tokens', 'output tokens count', 'outputtokens'],
+        cachedTokens: ['cached tokens', 'cached', 'cache', 'cache tokens', 'cachedtokens'],
+    };
 
-        const modelRaw = row[findKey(row, 'Model')] || 'unknown';
-        const department = row[findKey(row, 'Department')] || 'Unassigned';
-        const user = row[findKey(row, 'User')] || 'Unknown';
-        const executionId = row[findKey(row, 'Unique')] || row[findKey(row, 'Execution ID')];
-        const timeStr = row[findKey(row, 'Time')];
-        const nodeName = row[findKey(row, 'Node Name')] || 'Unknown Node';
+    const REQUIRED_FIELDS = [
+        { key: 'time', label: 'Time' },
+        { key: 'model', label: 'Model' },
+        { key: 'inputTokens', label: 'Input Tokens' },
+        { key: 'outputTokens', label: 'Output Tokens' },
+    ];
 
-        const input = parseFloat(row[findKey(row, 'Input Tokens')] || 0);
-        const output = parseFloat(row[findKey(row, 'Output Tokens')] || 0);
-        const cached = parseFloat(row[findKey(row, 'Cached Tokens')] || row[findKey(row, 'Cache')] || 0);
+    const buildColumnMap = (fields) => {
+        const normalized = new Map();
+        (fields || []).forEach((field) => {
+            normalized.set(normalizeHeader(field), field);
+        });
 
-        let modelPriceKey = Object.keys(pricing.openai).find(k => modelRaw.includes(k));
-        const rates = (modelPriceKey && pricing.openai[modelPriceKey]) || { input: 0, output: 0, cached: 0 };
+        const pick = (aliases) => {
+            for (const alias of aliases) {
+                const key = normalized.get(alias);
+                if (key) return key;
+            }
+            return null;
+        };
+
+        return {
+            time: pick(HEADER_ALIASES.time),
+            model: pick(HEADER_ALIASES.model),
+            department: pick(HEADER_ALIASES.department),
+            user: pick(HEADER_ALIASES.user),
+            executionId: pick(HEADER_ALIASES.executionId),
+            node: pick(HEADER_ALIASES.node),
+            inputTokens: pick(HEADER_ALIASES.inputTokens),
+            outputTokens: pick(HEADER_ALIASES.outputTokens),
+            cachedTokens: pick(HEADER_ALIASES.cachedTokens),
+        };
+    };
+
+    const buildModelRateLookup = (openaiPricing) => {
+        const entries = Object.entries(openaiPricing || {}).map(([key, data]) => ({
+            key,
+            data,
+            keyLower: String(key).toLowerCase(),
+            labelLower: String(data?.label || '').toLowerCase(),
+        }));
+
+        entries.sort((a, b) => b.keyLower.length - a.keyLower.length);
+
+        return (modelRaw) => {
+            if (!modelRaw) return { input: 0, output: 0, cached: 0 };
+            const modelLower = String(modelRaw).toLowerCase();
+
+            let match = entries.find((entry) => entry.keyLower === modelLower || entry.labelLower === modelLower);
+            if (!match) {
+                match = entries.find((entry) => modelLower.includes(entry.keyLower) || (entry.labelLower && modelLower.includes(entry.labelLower)));
+            }
+            return match?.data || { input: 0, output: 0, cached: 0 };
+        };
+    };
+
+    const parseNumber = (value) => {
+        if (value == null) return 0;
+        if (typeof value === 'number' && Number.isFinite(value)) return value;
+        const cleaned = String(value).replace(/,/g, '').trim();
+        if (!cleaned) return 0;
+        const num = Number(cleaned);
+        return Number.isFinite(num) ? num : 0;
+    };
+
+    const parseDate = (value) => {
+        if (value == null || value === '') return null;
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return null;
+        return date;
+    };
+
+    const optimizeRow = (row, columnMap, getRates, rowIndex) => {
+        if (!columnMap?.time || !columnMap?.model || !columnMap?.inputTokens || !columnMap?.outputTokens) return null;
+
+        const modelRaw = row[columnMap.model] || 'unknown';
+        const department = row[columnMap.department] || 'Unassigned';
+        const user = row[columnMap.user] || 'Unknown';
+        const executionId = row[columnMap.executionId] || `row_${rowIndex}`;
+        const timeStr = row[columnMap.time];
+        const nodeName = row[columnMap.node] || 'Unknown Node';
+
+        const input = parseNumber(row[columnMap.inputTokens]);
+        const output = parseNumber(row[columnMap.outputTokens]);
+        const cached = parseNumber(columnMap.cachedTokens ? row[columnMap.cachedTokens] : 0);
+
+        const dateObj = parseDate(timeStr);
+        if (!dateObj) return null;
+
+        const rates = getRates(modelRaw);
         const freshInput = Math.max(0, input - cached);
 
-        const cost = ((freshInput / 1e6) * rates.input) +
-            ((cached / 1e6) * (rates.cached || rates.input)) +
-            ((output / 1e6) * rates.output);
-
-        const dateObj = timeStr ? new Date(timeStr) : new Date();
+        const cost = ((freshInput / 1e6) * (rates.input || 0)) +
+            ((cached / 1e6) * (rates.cached || rates.input || 0)) +
+            ((output / 1e6) * (rates.output || 0));
 
         return {
             id: executionId,
@@ -222,11 +314,11 @@ export default function DailyUsage({ pricing = {} }) {
             date: dateObj.toISOString().split('T')[0],
             dpt: department,
             usr: user,
-            mdl: modelRaw,
-            nd: nodeName.trim(),
-            c: cost,
-            ti: input,    // Added: Total Input
-            to: output,   // Added: Total Output
+            mdl: String(modelRaw).trim(),
+            nd: String(nodeName).trim(),
+            c: Number.isFinite(cost) ? cost : 0,
+            ti: input,
+            to: output,
             t: input + output
         };
     };
@@ -240,74 +332,88 @@ export default function DailyUsage({ pricing = {} }) {
             return;
         }
 
+        const uploadId = ++uploadIdRef.current;
         setFileName(file.name);
         setProcessing(true);
         setError(null);
+        setImportWarning(null);
         setRowCount(0);
+        setStats(null);
         rawDataRef.current = [];
 
         const depts = new Set();
         const models = new Set();
-        const reader = new FileReader();
+        const getRates = buildModelRateLookup(pricing.openai);
 
-        reader.onload = (event) => {
-            const text = event.target.result;
-            const lines = text.split('\n');
+        let processedCount = 0;
+        let skippedCount = 0;
+        let parsedRowIndex = 0;
+        let columnMap = null;
 
-            if (lines.length === 0) {
-                setProcessing(false);
-                setError("File is empty");
-                return;
-            }
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: 'greedy',
+            dynamicTyping: false,
+            chunkSize: 1024 * 1024,
+            chunk: (results, parser) => {
+                if (uploadId !== uploadIdRef.current) {
+                    parser.abort();
+                    return;
+                }
 
-            const headers = lines[0].split(',').map(h => h.trim());
-            let processedCount = 0;
-            let currentIndex = 1;
-            const totalLines = lines.length;
-            const CHUNK_SIZE = 5000;
-
-            const processChunk = () => {
-                const chunkEnd = Math.min(currentIndex + CHUNK_SIZE, totalLines);
-                for (let i = currentIndex; i < chunkEnd; i++) {
-                    const line = lines[i];
-                    if (!line || !line.trim()) continue;
-                    const values = line.split(',');
-                    const row = {};
-                    headers.forEach((h, idx) => {
-                        let val = values[idx] || '';
-                        if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
-                        row[h] = val.trim();
-                    });
-                    processedCount++;
-                    const processedRow = optimizeRow(row, pricing);
-                    if (processedRow) {
-                        rawDataRef.current.push(processedRow);
-                        if (processedRow.dpt) depts.add(processedRow.dpt);
-                        if (processedRow.mdl) models.add(processedRow.mdl);
+                if (!columnMap) {
+                    columnMap = buildColumnMap(results.meta?.fields || []);
+                    const missingRequired = REQUIRED_FIELDS.filter((field) => !columnMap[field.key]);
+                    if (missingRequired.length > 0) {
+                        setError(`Missing required columns: ${missingRequired.map((field) => field.label).join(', ')}`);
+                        setProcessing(false);
+                        parser.abort();
+                        return;
                     }
                 }
-                currentIndex = chunkEnd;
+
+                results.data.forEach((row) => {
+                    parsedRowIndex += 1;
+                    const processedRow = optimizeRow(row, columnMap, getRates, parsedRowIndex);
+                    if (!processedRow) {
+                        skippedCount += 1;
+                        return;
+                    }
+                    rawDataRef.current.push(processedRow);
+                    processedCount += 1;
+                    if (processedRow.dpt) depts.add(processedRow.dpt);
+                    if (processedRow.mdl) models.add(processedRow.mdl);
+                });
+
                 setRowCount(processedCount);
-
-                if (currentIndex < totalLines) {
-                    setTimeout(processChunk, 0);
-                } else {
-                    setAvailableOptions({
-                        departments: Array.from(depts).sort(),
-                        models: Array.from(models).sort()
-                    });
-                    recalculateStats();
+            },
+            complete: () => {
+                if (uploadId !== uploadIdRef.current) return;
+                if (processedCount === 0) {
+                    setError("No valid rows found in the CSV.");
                     setProcessing(false);
+                    return;
                 }
-            };
-            processChunk();
-        };
 
-        reader.onerror = () => {
-            setError("Failed to read file.");
-            setProcessing(false);
-        };
-        reader.readAsText(file);
+                setAvailableOptions({
+                    departments: Array.from(depts).sort(),
+                    models: Array.from(models).sort()
+                });
+                recalculateStats();
+                setProcessing(false);
+
+                if (skippedCount > 0) {
+                    setImportWarning(`Skipped ${skippedCount.toLocaleString()} rows with missing or invalid timestamps.`);
+                }
+            },
+            error: (err) => {
+                if (uploadId !== uploadIdRef.current) return;
+                setError(`Failed to parse CSV: ${err?.message || err}`);
+                setProcessing(false);
+            }
+        });
+
+        e.target.value = '';
     };
 
     // --- REUSABLE FILTER LOGIC ---
@@ -464,10 +570,12 @@ export default function DailyUsage({ pricing = {} }) {
     }, [filters]);
 
     const handleReset = () => {
+        uploadIdRef.current += 1;
         setStats(null);
         setFileName(null);
         setRowCount(0);
         setError(null);
+        setImportWarning(null);
         rawDataRef.current = [];
         setFilters({
             dateRange: 'all',
@@ -553,6 +661,11 @@ export default function DailyUsage({ pricing = {} }) {
                                 <p className="text-xs text-gray-500">{rowCount.toLocaleString()} records processed</p>
                             </div>
                         </div>
+                        {importWarning && (
+                            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
+                                {importWarning}
+                            </div>
+                        )}
                         <div className="flex items-center gap-2">
                             {/* --- EXPORT BUTTON --- */}
                             <button
